@@ -248,7 +248,7 @@ void PLOT_TRANSPARENT_TILE(uint16_t destination);
 void REVERSE_TILE();
 #endif
 void CHECK_FOR_WINDOW_REDRAW();
-void DECWRITE(uint16_t destination, uint8_t color = 10);
+void DECWRITE(uint16_t destination, uint8_t color = 10, uint8_t yOffset = 0);
 
 void TILE_LOAD_ROUTINE();
 void MAP_LOAD_ROUTINE();

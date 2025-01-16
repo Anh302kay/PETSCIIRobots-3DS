@@ -1,0 +1,4 @@
+--atlas -f rgba8888 -z auto
+keys/0.png  
+keys/1.png  
+keys/3.png  

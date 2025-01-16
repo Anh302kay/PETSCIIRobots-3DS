@@ -6,4 +6,7 @@ SDL_src/VC/SDL2/*
 SDL_src/VC/SDL2_image/*
 !.placeholder
 x64
-.vs
+.vscode
+build/
+PETSCIIRobots-3DS.*
+romfs/*.t3x

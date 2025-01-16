@@ -1,0 +1,5 @@
+--atlas -f rgba8888 -z auto
+text/0.png  
+text/1.png  
+text/2.png  
+text/3.png  

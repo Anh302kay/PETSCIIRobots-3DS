@@ -10,6 +10,8 @@
 #include "PlatformAmiga.h"
 #elif defined(_PSP)
 #include "PlatformPSP.h"
+#elif defined(__3DS__)
+#include "PlatformCTR.h"
 #else
 #include "PlatformSDL.h"
 #endif
@@ -158,7 +160,7 @@ int main(int argc, char *argv[])
     TILE_LOAD_ROUTINE();
     SETUP_INTERRUPT();
     SET_CONTROLS(); // copy initial key controls
-    while (!platform->quit) {
+    while (!platform->quit && aptMainLoop()) {
         INTRO_SCREEN();
     }
     return 0;
@@ -198,6 +200,7 @@ void INIT_GAME()
     SET_INITIAL_TIMERS();
     PRINT_INTRO_MESSAGE();
     KEYTIMER = 30;
+    platform->renderLiveMap(MAP);
     MAIN_GAME_LOOP();
 }
 
@@ -229,7 +232,7 @@ char INTRO_MESSAGE[] = "welcome to "
                        "-robots!\xff"
                        "by david murray 2021\xff"
                        PLATFORM_NAME
-                       " port by vesa halttunen";
+                       " port by kayden tran";
 char MSG_CANTMOVE[] = "can't move that!";
 char MSG_BLOCKED[] = "blocked!";
 char MSG_SEARCHING[] = "searching";
@@ -255,7 +258,7 @@ char MSG_PAUSED[] = "exit game?\xff"
                     "left=yes right=no";
 #else
 char MSG_PAUSED[] = "game paused.\xff"
-                    "exit game (y/n)";
+                    "exit game (a/b)";
 #endif
 char MSG_MUSICON[] = "music on.";
 char MSG_MUSICOFF[] = "music off.";
@@ -302,11 +305,11 @@ void DISPLAY_LOAD_MESSAGE2()
 {
     int Y;
     for (Y = 0; Y != 12; Y++) {
-        writeToScreenMemory((PLATFORM_SCREEN_HEIGHT - 32) / 2 / 8 * SCREEN_WIDTH_IN_CHARACTERS + (PLATFORM_SCREEN_WIDTH - 320) / 2 / 8 + Y, LOAD_MSG2[Y]);
+        writeToScreenMemory((PLATFORM_SCREEN_HEIGHT - 32) / 2 / 8 * SCREEN_WIDTH_IN_CHARACTERS + (PLATFORM_SCREEN_WIDTH - 200) / 2 / 8 + Y, LOAD_MSG2[Y]);
     }
     char* name = CALC_MAP_NAME();
     for (Y = 0; Y != 16; Y++) {
-        writeToScreenMemory((PLATFORM_SCREEN_HEIGHT - 32) / 2 / 8 * SCREEN_WIDTH_IN_CHARACTERS + (PLATFORM_SCREEN_WIDTH - 320) / 2 / 8 + 12 + Y, name[Y]);
+        writeToScreenMemory((PLATFORM_SCREEN_HEIGHT - 32) / 2 / 8 * SCREEN_WIDTH_IN_CHARACTERS + (PLATFORM_SCREEN_WIDTH - 200) / 2 / 8 + 12 + Y, name[Y]);
     }
 }
 
@@ -404,7 +407,7 @@ void MAIN_GAME_LOOP()
 {
     platform->renderFrame();
     bool done = false;
-    while (!done && !platform->quit) {
+    while (!done && !platform->quit && aptMainLoop()) {
 #ifdef INACTIVITY_TIMEOUT_GAME
         if (INACTIVE_SECONDS >= INACTIVITY_TIMEOUT_GAME) {
             return;
@@ -420,79 +423,30 @@ void MAIN_GAME_LOOP()
             return;
         }
         KEY_REPEAT(platform->isKeyOrJoystickPressed(CONTROL >= 2 ? true : false));
-        uint8_t A = platform->readKeyboard();
         uint16_t B = platform->readJoystick(CONTROL >= 2 ? true : false);
-        // Keyboard controls here.
-        if (A != 0xff) {
-#ifdef INACTIVITY_TIMEOUT_GAME
-            INACTIVE_SECONDS = 0;
-#endif
-            KEYTIMER = 5;
-            if (A == KEY_CONFIG[KEY_CURSOR_RIGHT] || A == KEY_CONFIG[KEY_MOVE_RIGHT]) { // CURSOR RIGHT
-                UNIT = 0;
-                MOVE_TYPE = 1; // %00000001
-                REQUEST_WALK_RIGHT();
-                AFTER_MOVE();
-            } else if (A == KEY_CONFIG[KEY_CURSOR_LEFT] || A == KEY_CONFIG[KEY_MOVE_LEFT]) { // CURSOR LEFT
-                UNIT = 0;
-                MOVE_TYPE = 1;  // %00000001
-                REQUEST_WALK_LEFT();
-                AFTER_MOVE();
-            } else if (A == KEY_CONFIG[KEY_CURSOR_DOWN] || A == KEY_CONFIG[KEY_MOVE_DOWN]) { // CURSOR DOWN
-                UNIT = 0;
-                MOVE_TYPE = 1;  // %00000001
-                REQUEST_WALK_DOWN();
-                AFTER_MOVE();
-            } else if (A == KEY_CONFIG[KEY_CURSOR_UP] || A == KEY_CONFIG[KEY_MOVE_UP]) { // CURSOR UP
-                UNIT = 0;
-                MOVE_TYPE = 1;  // %00000001
-                REQUEST_WALK_UP();
-                AFTER_MOVE();
-            } else if (A == KEY_CONFIG[KEY_CYCLE_WEAPONS]) {
+        static touchPosition touch;
+
+        if(hidKeysDown() & KEY_TOUCH) {
+            hidTouchRead(&touch);
+        }
+
+        if (hidKeysUp() & KEY_TOUCH && B & Platform::JoystickTouch) {
+            if(touch.px > 28 && touch.py > 14 && touch.px < 28+48 && touch.py < 23+51) {
                 CYCLE_WEAPON();
-                CLEAR_KEY_BUFFER();
-            } else if (A == KEY_CONFIG[KEY_CYCLE_ITEMS]) {
-                CYCLE_ITEM();
-                CLEAR_KEY_BUFFER();
-            } else if (A == KEY_CONFIG[KEY_MOVE]) {
-                MOVE_OBJECT();
-                CLEAR_KEY_BUFFER();
-            } else if (A == KEY_CONFIG[KEY_SEARCH]) {
-                SEARCH_OBJECT();
-                CLEAR_KEY_BUFFER();
-            } else if (A == KEY_CONFIG[KEY_USE]) {
-                USE_ITEM();
-                CLEAR_KEY_BUFFER();
-            } else if (A == KEY_CONFIG[KEY_FIRE_UP]) {
-                FIRE_UP();
-                KEYTIMER = 20;
-            } else if (A == KEY_CONFIG[KEY_FIRE_LEFT]) {
-                FIRE_LEFT();
-                KEYTIMER = 20;
-            } else if (A == KEY_CONFIG[KEY_FIRE_DOWN]) {
-                FIRE_DOWN();
-                KEYTIMER = 20;
-            } else if (A == KEY_CONFIG[KEY_FIRE_RIGHT]) {
-                FIRE_RIGHT();
-                KEYTIMER = 20;
-            } else if (A == KEY_CONFIG[KEY_PAUSE]) { // RUN/STOP
-                done = PAUSE_GAME();
-            } else if (A == KEY_CONFIG[KEY_CHEAT]) { // SHIFT-C
-                CHEATER();
-                CLEAR_KEY_BUFFER();
-            } else if (A == KEY_CONFIG[KEY_MUSIC]) { // SHIFT-M
-                TOGGLE_MUSIC();
-                CLEAR_KEY_BUFFER();
+                KEYTIMER = 15;
             }
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
-            else if (A == KEY_CONFIG[KEY_LIVE_MAP]) {
-                TOGGLE_LIVE_MAP();
-                CLEAR_KEY_BUFFER();
-            } else if (A == KEY_CONFIG[KEY_LIVE_MAP_ROBOTS]) {
+            else if(touch.px > 99 && touch.py > 14 && touch.px < 99+48 && touch.py < 23+51) {
+                CYCLE_ITEM();
+                KEYTIMER = 15;
+            } 
+            else if(touch.px > 171 && touch.py > 14 && touch.px < 171+120 && touch.py < 23+51) {
+                USE_ITEM();
+                KEYTIMER = 15;
+            } else {
                 TOGGLE_LIVE_MAP_ROBOTS();
                 CLEAR_KEY_BUFFER();
             }
-#endif
+
         }
         // SNES CONTROLLER starts here
         if (B != 0) {
@@ -564,19 +518,15 @@ void MAIN_GAME_LOOP()
                         TOGGLE_MUSIC();
                         CLEAR_KEY_BUFFER();
                     }
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
                     if (B & Platform::JoystickYellow) {
                         TOGGLE_LIVE_MAP_ROBOTS();
                         CLEAR_KEY_BUFFER();
                     }
-#endif
                 } else {
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
                     if (B & Platform::JoystickYellow) {
                         TOGGLE_LIVE_MAP();
                         CLEAR_KEY_BUFFER();
                     }
-#endif
                     if (B & Platform::JoystickGreen) {
                         CYCLE_ITEM();
                         KEYTIMER = 15;
@@ -612,16 +562,7 @@ void MAIN_GAME_LOOP()
                         CYCLE_WEAPON();
                         KEYTIMER = 15;
                     }
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
-                    if (B & Platform::JoystickLeft) {
-                        TOGGLE_LIVE_MAP();
-                        CLEAR_KEY_BUFFER();
-                    }
-                    if (B & Platform::JoystickDown) {
-                        TOGGLE_LIVE_MAP_ROBOTS();
-                        CLEAR_KEY_BUFFER();
-                    }
-#endif
+
                     if (B & Platform::JoystickBlue) {
                         done = PAUSE_GAME();
                     }
@@ -800,12 +741,9 @@ bool PAUSE_GAME()
 //    for (BGTIMER1 = 0; BGTIMER1 != 1;); // to prevent double-tap of run/stop
     CLEAR_KEY_BUFFER();
     platform->renderFrame();
-    while (!platform->quit) {
-        uint8_t A = platform->readKeyboard();
+    while (!platform->quit && aptMainLoop()) {
         uint16_t B = platform->readJoystick(CONTROL >= 2 ? true : false);
-        if (A == KEY_CONFIG[KEY_PAUSE] || // RUN/STOP
-            A == KEY_CONFIG[KEY_NO] ||
-            (B & Platform::JoystickBlue)) { // N-KEY
+        if ( (B & Platform::JoystickRed)) { // B button
             SCROLL_INFO();
             SCROLL_INFO();
             SCROLL_INFO();
@@ -813,7 +751,7 @@ bool PAUSE_GAME()
             CLOCK_ACTIVE = 1;
             PLAY_SOUND(15);
             return false;
-        } else if (A == KEY_CONFIG[KEY_YES] || (B & Platform::JoystickRed)) { // Y-KEY
+        } else if ((B & Platform::JoystickBlue)) { // A button
             UNIT_TYPE[0] = 0; // make player dead
             PLAY_SOUND(15);
             GOM4();
@@ -1392,7 +1330,7 @@ void USER_SELECT_OBJECT()
     REVERSE_TILE();
 #endif
     // First ask user which object to move
-    while (!platform->quit) {
+    while (!platform->quit && aptMainLoop()) {
         if (BGTIMER1 != 1) {
             platform->renderFrame(true);
         }
@@ -1504,7 +1442,7 @@ void MOVE_OBJECT()
     REVERSE_TILE();
 #endif
     // NOW ASK THE USER WHICH DIRECTION TO MOVE IT TO
-    while (!platform->quit) {
+    while (!platform->quit && aptMainLoop()) {
         if (BGTIMER1 != 1) {
             platform->renderFrame(true);
         }
@@ -1568,10 +1506,10 @@ void MOVE_OBJECT()
             REDRAW_WINDOW = 1; // See the result
             if (MOVTEMP_U == 255) {
 #ifdef PLATFORM_LIVE_MAP_SUPPORT
-                if (LIVE_MAP_ON == 1) {
+                // if (LIVE_MAP_ON == 1) {
                     platform->renderLiveMapTile(MAP, MOVTEMP_X, MOVTEMP_Y);
                     platform->renderLiveMapTile(MAP, MOVTEMP_UX, MOVTEMP_UY);
-                }
+                // }
 #endif
                 return;
             }
@@ -2029,10 +1967,10 @@ void CHECK_FOR_WINDOW_REDRAW()
     }
 }
 
-void DECWRITE(uint16_t destination, uint8_t color)
+void DECWRITE(uint16_t destination, uint8_t color, uint8_t yOffset)
 {
     for (int X = 2; X >= 0; X--) {
-        writeToScreenMemory(destination + X, 0x30 + (DECNUM % 10), color);
+        writeToScreenMemory(destination + X, 0x30 + (DECNUM % 10), color, yOffset);
         DECNUM /= 10;
     }
 }
@@ -2070,12 +2008,12 @@ void DISPLAY_GAME_SCREEN()
 #ifdef PLATFORM_IMAGE_SUPPORT
     platform->displayImage(Platform::ImageGame);
 
-    writeToScreenMemory(25 * SCREEN_WIDTH_IN_CHARACTERS - 6, 0x71, 15);
-    writeToScreenMemory(25 * SCREEN_WIDTH_IN_CHARACTERS - 5, 0x71, 15);
-    writeToScreenMemory(25 * SCREEN_WIDTH_IN_CHARACTERS - 4, 0x71, 12);
-    writeToScreenMemory(25 * SCREEN_WIDTH_IN_CHARACTERS - 3, 0x71, 12);
-    writeToScreenMemory(25 * SCREEN_WIDTH_IN_CHARACTERS - 2, 0x71, 9);
-    writeToScreenMemory(25 * SCREEN_WIDTH_IN_CHARACTERS - 1, 0x71, 9);
+    writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 30, 0x71, 15);
+    writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 31, 0x71, 15);
+    writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 32, 0x71, 12);
+    writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 33, 0x71, 12);
+    writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 34, 0x71, 9);
+    writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 35, 0x71, 9);
 #else
     DECOMPRESS_SCREEN(SCR_TEXT);
 #endif
@@ -2109,6 +2047,7 @@ void DISPLAY_ENDGAME_SCREEN()
 #else
     DECOMPRESS_SCREEN(SCR_ENDGAME);
 #endif
+    platform->clearRect(0, 240, 320, 240);
     // display map name
     char* name = CALC_MAP_NAME();
     for (int Y = 0; Y != 16; Y++) {
@@ -2145,6 +2084,7 @@ void DISPLAY_ENDGAME_SCREEN()
     for (X = 0; X < 6; X++) {
         writeToScreenMemory(15 * SCREEN_WIDTH_IN_CHARACTERS + 22 + X, WORD[X], 4);
     }
+
 }
 
 char DIFF_LEVEL_WORDS[] = "easy  "
@@ -2156,7 +2096,7 @@ void DECOMPRESS_SCREEN(uint8_t* source, uint8_t color)
 {
     uint16_t destination = 0;
 
-    while (!platform->quit) {
+    while (!platform->quit && aptMainLoop()) {
         if (*source != 96) { // REPEAT FLAG
             writeToScreenMemory(destination, *source, color);
         } else {
@@ -2185,18 +2125,18 @@ void DISPLAY_PLAYER_HEALTH()
     TEMP_A = UNIT_HEALTH[0] >> 1; // No index needed because it is the player, divide by two
     int Y = 0;
     while (Y != TEMP_A) {
-        writeToScreenMemory(24 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y++, 0x66); // GRAY BLOCK
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 10) + 30 + Y++, 0x66); // GRAY BLOCK
     }
     if (UNIT_HEALTH[0] & 0x01) {
-        writeToScreenMemory(24 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y++, 0x5C); // HALF GRAY BLOCK
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 10) + 30 + Y++, 0x5C); // HALF GRAY BLOCK
     }
     while (Y != 6) {
-        writeToScreenMemory(24 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y++, 0x20); // SPACE
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 10) + 30 + Y++, 0x20); // SPACE
     }
 
 #ifdef PLATFORM_IMAGE_SUPPORT
     int health = 5 - MIN(TEMP_A, 5);
-    platform->renderHealth(health, PLATFORM_SCREEN_WIDTH - 48, 131 + (health >> 1));
+    platform->renderHealth(health, 243, 23);
 #endif
 }
 
@@ -2290,9 +2230,9 @@ void PRESELECT_ITEM()
 void DISPLAY_TIMEBOMB()
 {
 #ifdef PLATFORM_IMAGE_SUPPORT
-    platform->renderItem(5, PLATFORM_SCREEN_WIDTH - 48, 54);
+    platform->renderItem(5, 99, 23);
     DECNUM = INV_BOMBS;
-    DECWRITE(11 * SCREEN_WIDTH_IN_CHARACTERS - 3, 1);
+    DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 15, 1);
 #else
     for (int Y = 0; Y != 6; Y++) {
         writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, TBOMB1A[Y]);
@@ -2308,9 +2248,9 @@ void DISPLAY_TIMEBOMB()
 void DISPLAY_EMP()
 {
 #ifdef PLATFORM_IMAGE_SUPPORT
-    platform->renderItem(3, PLATFORM_SCREEN_WIDTH - 48, 54);
+    platform->renderItem(3, 99, 23);
     DECNUM = INV_EMP;
-    DECWRITE(11 * SCREEN_WIDTH_IN_CHARACTERS - 3, 1);
+    DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 15, 1);
 #else
     for (int Y = 0; Y != 6; Y++) {
         writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, EMP1A[Y]);
@@ -2326,9 +2266,9 @@ void DISPLAY_EMP()
 void DISPLAY_MEDKIT()
 {
 #ifdef PLATFORM_IMAGE_SUPPORT
-    platform->renderItem(2, PLATFORM_SCREEN_WIDTH - 48, 54);
+    platform->renderItem(2, 99, 23);
     DECNUM = INV_MEDKIT;
-    DECWRITE(11 * SCREEN_WIDTH_IN_CHARACTERS - 3, 1);
+    DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 15, 1);
 #else
     for (int Y = 0; Y != 6; Y++) {
         writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, MED1A[Y]);
@@ -2344,9 +2284,9 @@ void DISPLAY_MEDKIT()
 void DISPLAY_MAGNET()
 {
 #ifdef PLATFORM_IMAGE_SUPPORT
-    platform->renderItem(4, PLATFORM_SCREEN_WIDTH - 48, 54);
+    platform->renderItem(4, 99, 23);
     DECNUM = INV_MAGNET;
-    DECWRITE(11 * SCREEN_WIDTH_IN_CHARACTERS - 3, 1);
+    DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 15, 1);
 #else
     for (int Y = 0; Y != 6; Y++) {
         writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, MAG1A[Y]);
@@ -2362,7 +2302,7 @@ void DISPLAY_MAGNET()
 void DISPLAY_BLANK_ITEM()
 {
 #ifdef PLATFORM_IMAGE_SUPPORT
-    platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 48, 48, 40);
+    platform->clearRect(99, 23 + 240, 48, 40);
 #else
     platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 64, 48, 40);
     /*
@@ -2397,7 +2337,7 @@ void CYCLE_WEAPON()
 
 void DISPLAY_WEAPON()
 {
-    while (!platform->quit) {
+    while (!platform->quit && aptMainLoop()) {
         PRESELECT_WEAPON();
         if (SELECTED_WEAPON == 0) { // no weapon to show
             // add routine to draw blank space
@@ -2446,9 +2386,9 @@ void PRESELECT_WEAPON()
 void DISPLAY_PLASMA_GUN()
 {
 #ifdef PLATFORM_IMAGE_SUPPORT
-    platform->renderItem(1, PLATFORM_SCREEN_WIDTH - 48, 13);
+    platform->renderItem(1, 28, 23);
     DECNUM = AMMO_PLASMA;
-    DECWRITE(5 * SCREEN_WIDTH_IN_CHARACTERS - 3, 1);
+    DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 7, 1);
 #else
     for (int Y = 0; Y != 6; Y++) {
         writeToScreenMemory(2 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, WEAPON1A[Y]);
@@ -2464,9 +2404,9 @@ void DISPLAY_PLASMA_GUN()
 void DISPLAY_PISTOL()
 {
 #ifdef PLATFORM_IMAGE_SUPPORT
-    platform->renderItem(0, PLATFORM_SCREEN_WIDTH - 48, 13);
+    platform->renderItem(0, 28, 23);
     DECNUM = AMMO_PISTOL;
-    DECWRITE(5 * SCREEN_WIDTH_IN_CHARACTERS - 3, 1);
+    DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 7, 1);
 #else
     for (int Y = 0; Y != 6; Y++) {
         writeToScreenMemory(2 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, PISTOL1A[Y]);
@@ -2482,7 +2422,7 @@ void DISPLAY_PISTOL()
 void DISPLAY_BLANK_WEAPON()
 {
 #ifdef PLATFORM_IMAGE_SUPPORT
-    platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 8, 48, 32);
+    platform->clearRect(27, 23 + 240, 55, 32);
 #else
     platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 16, 48, 32);
     /*
@@ -2502,13 +2442,13 @@ void DISPLAY_KEYS()
 #ifdef PLATFORM_IMAGE_SUPPORT
 //    platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 106, 48, 14); // ERASE ALL 3 SPOTS
     if (KEYS & 0x01) { // %00000001 Spade key
-        platform->renderKey(0, PLATFORM_SCREEN_WIDTH - 48, 106);
+        platform->renderKey(0, 171, 23);
     }
     if (KEYS & 0x02) { // %00000010 heart key
-        platform->renderKey(1, PLATFORM_SCREEN_WIDTH - 32, 106);
+        platform->renderKey(1, 171 + 16, 23);
     }
     if (KEYS & 0x04) { // %00000100 star key
-        platform->renderKey(2, PLATFORM_SCREEN_WIDTH - 16, 106);
+        platform->renderKey(2, 171 + 32, 23);
     }
 #else
 //    platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 120, 48, 16); // ERASE ALL 3 SPOTS
@@ -2572,9 +2512,9 @@ void GAME_OVER()
         BACKGROUND_TASKS();
     }
     for (int X = 0; X != 11; X++) {
-        writeToScreenMemory((SCREEN_HEIGHT_IN_CHARACTERS - 3 - 3) / 2 * SCREEN_WIDTH_IN_CHARACTERS + (SCREEN_WIDTH_IN_CHARACTERS - 7 - 11) / 2 + X, GAMEOVER1[X]);
-        writeToScreenMemory(((SCREEN_HEIGHT_IN_CHARACTERS - 3 - 3) / 2 + 1) * SCREEN_WIDTH_IN_CHARACTERS + (SCREEN_WIDTH_IN_CHARACTERS - 7 - 11) / 2 + X, GAMEOVER2[X]);
-        writeToScreenMemory(((SCREEN_HEIGHT_IN_CHARACTERS - 3 - 3) / 2 + 2) * SCREEN_WIDTH_IN_CHARACTERS + (SCREEN_WIDTH_IN_CHARACTERS - 7 - 11) / 2 + X, GAMEOVER3[X]);
+        writeToScreenMemory((SCREEN_HEIGHT_IN_CHARACTERS - 3 - 3) / 2 * SCREEN_WIDTH_IN_CHARACTERS + (SCREEN_WIDTH_IN_CHARACTERS - 11) / 2 + X, GAMEOVER1[X]);
+        writeToScreenMemory(((SCREEN_HEIGHT_IN_CHARACTERS - 3 - 3) / 2 + 1) * SCREEN_WIDTH_IN_CHARACTERS + (SCREEN_WIDTH_IN_CHARACTERS - 11) / 2 + X, GAMEOVER2[X]);
+        writeToScreenMemory(((SCREEN_HEIGHT_IN_CHARACTERS - 3 - 3) / 2 + 2) * SCREEN_WIDTH_IN_CHARACTERS + (SCREEN_WIDTH_IN_CHARACTERS - 11) / 2 + X, GAMEOVER3[X]);
     }
     platform->renderFrame();
 #ifdef PLATFORM_MODULE_BASED_AUDIO
@@ -2590,9 +2530,9 @@ void GAME_OVER()
     }
 #endif
 #ifdef INACTIVITY_TIMEOUT_GAME
-    for (int frames = 0; platform->readKeyboard() == 0xff && platform->readJoystick(CONTROL >= 2 ? true : false) == 0 && !platform->quit && frames < 5 * platform->framesPerSecond(); frames++) {
+    for (int frames = 0; platform->readKeyboard() == 0xff && platform->readJoystick(CONTROL >= 2 ? true : false) == 0 && !platform->quit && aptMainLoop() && frames < 5 * platform->framesPerSecond(); frames++) {
 #else
-    while (platform->readKeyboard() == 0xff && platform->readJoystick(CONTROL >= 2 ? true : false) == 0 && !platform->quit) {
+    while (platform->readKeyboard() == 0xff && platform->readJoystick(CONTROL >= 2 ? true : false) == 0 && !platform->quit && aptMainLoop()) {
 #endif
         platform->renderFrame(true);
     }
@@ -2614,9 +2554,9 @@ void GOM4()
     platform->renderFrame();
     platform->fadeScreen(15, false);
 #ifdef INACTIVITY_TIMEOUT_GAME
-    for (int frames = 0; platform->readKeyboard() == 0xff && platform->readJoystick(CONTROL >= 2 ? true : false) == 0 && !platform->quit && frames < 15 * platform->framesPerSecond(); frames++) {
+    for (int frames = 0; platform->readKeyboard() == 0xff && platform->readJoystick(CONTROL >= 2 ? true : false) == 0 && !platform->quit && aptMainLoop() && frames < 15 * platform->framesPerSecond(); frames++) {
 #else
-    while (platform->readKeyboard() == 0xff && platform->readJoystick(CONTROL >= 2 ? true : false) == 0 && !platform->quit) {
+    while (platform->readKeyboard() == 0xff && platform->readJoystick(CONTROL >= 2 ? true : false) == 0 && !platform->quit && aptMainLoop()) {
 #endif
         platform->renderFrame(true);
     }
@@ -2636,7 +2576,7 @@ void DISPLAY_WIN_LOSE()
     if (UNIT_TYPE[0] != 0) {
         // WIN MESSAGE
         for (int X = 0; X != 8; X++) {
-            writeToScreenMemory(3 * SCREEN_WIDTH_IN_CHARACTERS + 16 + X, WIN_MSG[X], 4, 1);
+            writeToScreenMemory(4 * SCREEN_WIDTH_IN_CHARACTERS + 16 + X, WIN_MSG[X], 4, 1);
         }
 #ifdef PLATFORM_MODULE_BASED_AUDIO
         if (MUSIC_ON == 1) {
@@ -2648,7 +2588,7 @@ void DISPLAY_WIN_LOSE()
     } else {
         // LOSE MESSAGE
         for (int X = 0; X != 9; X++) {
-            writeToScreenMemory(3 * SCREEN_WIDTH_IN_CHARACTERS + 16 + X, LOS_MSG[X], 4, 1);
+            writeToScreenMemory(4 * SCREEN_WIDTH_IN_CHARACTERS + 16 + X, LOS_MSG[X], 4, 1);
         }
 #ifdef PLATFORM_MODULE_BASED_AUDIO
         if (MUSIC_ON == 1) {
@@ -2693,19 +2633,23 @@ uint8_t PRINTX = 0; // used to store X-cursor location
 // a new row at the bottom.
 void SCROLL_INFO()
 {
-    /*
+    
     int X;
     for (X = 0; X != 33; X++) {
-        writeToScreenMemory((SCREEN_HEIGHT_IN_CHARACTERS - 3) * SCREEN_WIDTH_IN_CHARACTERS + X, SCREEN_MEMORY[0x398 + X]);
-        writeToScreenMemory((SCREEN_HEIGHT_IN_CHARACTERS - 2) * SCREEN_WIDTH_IN_CHARACTERS + X, SCREEN_MEMORY[0x3C0 + X]); // BOTTOM ROW
+        writeToScreenMemory((SCREEN_HEIGHT_IN_CHARACTERS - 3) * SCREEN_WIDTH_IN_CHARACTERS + X, SCREEN_MEMORY[0x578 + X]);
+        writeToScreenMemory((SCREEN_HEIGHT_IN_CHARACTERS - 2) * SCREEN_WIDTH_IN_CHARACTERS + X, SCREEN_MEMORY[0x5AA + X]); // BOTTOM ROW
     }
     // NOW CLEAR BOTTOM ROW
-    for (X = 0; X != 33; X++) {
-        writeToScreenMemory((SCREEN_HEIGHT_IN_CHARACTERS - 1) * SCREEN_WIDTH_IN_CHARACTERS + X, 32); // BOTTOM ROW
-    }
-    */
-    platform->copyRect(0, PLATFORM_SCREEN_HEIGHT - 16, 0, PLATFORM_SCREEN_HEIGHT - 24, PLATFORM_SCREEN_WIDTH - 56, 16);
-    // NOW CLEAR BOTTOM ROW
+    memset(&SCREEN_MEMORY[(SCREEN_HEIGHT_IN_CHARACTERS - 1) * SCREEN_WIDTH_IN_CHARACTERS], 32, 33);
+    memset(&((PlatformCTR*)platform)->SCREEN_MEMORY[(SCREEN_HEIGHT_IN_CHARACTERS - 1) * SCREEN_WIDTH_IN_CHARACTERS], 32, 33);
+    // for (X = 0; X != 33; X++) {
+    //     // writeToScreenMemory((SCREEN_HEIGHT_IN_CHARACTERS - 1) * SCREEN_WIDTH_IN_CHARACTERS + X, 32); // BOTTOM ROW
+    //     SCREEN_MEMORY[(SCREEN_HEIGHT_IN_CHARACTERS - 1) * SCREEN_WIDTH_IN_CHARACTERS + X] = 32;
+    // }
+    platform->clearRect(0, PLATFORM_SCREEN_HEIGHT - 8, PLATFORM_SCREEN_WIDTH - 56, 8);
+    
+    // platform->copyRect(0, PLATFORM_SCREEN_HEIGHT - 16, 0, PLATFORM_SCREEN_HEIGHT - 24, PLATFORM_SCREEN_WIDTH - 56, 16);
+    // // NOW CLEAR BOTTOM ROW
     platform->clearRect(0, PLATFORM_SCREEN_HEIGHT - 8, PLATFORM_SCREEN_WIDTH - 56, 8);
     platform->renderFrame(true);
 }
@@ -2746,30 +2690,28 @@ void INTRO_SCREEN()
     REVERSE_MENU_OPTION(true);
     platform->renderFrame();
     bool done = false;
-    while (!done && !platform->quit) {
+    while (!done && !platform->quit && aptMainLoop()) {
         uint8_t A = platform->readKeyboard();
-        uint16_t B = platform->readJoystick(false);
-        if (A != 0xff || B != 0) {
-            if (A == KEY_CONFIG[KEY_CURSOR_DOWN] || A == KEY_CONFIG[KEY_MOVE_DOWN] || (B & Platform::JoystickDown)) { // CURSOR DOWN
+        const uint16_t B = platform->readJoystick(false);
+        if (B != 0) {
+            if ((B & Platform::JoystickDown)) { // CURSOR DOWN
                 if (MENUY != (PLATFORM_INTRO_OPTIONS - 1)) {
                     REVERSE_MENU_OPTION(false);
                     MENUY++;
                     REVERSE_MENU_OPTION(true);
                     PLAY_SOUND(15); // menu beep
                 }
-            } else if (A == KEY_CONFIG[KEY_CURSOR_UP] || A == KEY_CONFIG[KEY_MOVE_UP] || (B & Platform::JoystickUp)) { // CURSOR UP
+            } else if ((B & Platform::JoystickUp)) { // CURSOR UP
                 if (MENUY != 0) {
                     REVERSE_MENU_OPTION(false);
                     MENUY--;
                     REVERSE_MENU_OPTION(true);
                     PLAY_SOUND(15); // menu beep
                 }
-            } else if (A == KEY_CONFIG[KEY_SPACE] || // SPACE
-                       A == KEY_CONFIG[KEY_RETURN] || (B & Platform::JoystickRed)) { // RETURN
+            } else if ((B & Platform::JoystickBlue)) { // RETURN
                 done = EXEC_COMMAND();
             }
-#ifdef PLATFORM_MODULE_BASED_AUDIO
-             else if (A == KEY_CONFIG[KEY_MUSIC]) { // SHIFT-M
+            else if (A == KEY_CONFIG[KEY_MUSIC]) { // SHIFT-M
                 if (MUSIC_ON == 1) {
                     MUSIC_ON = 0;
                 } else {
@@ -2777,7 +2719,6 @@ void INTRO_SCREEN()
                 }
                 START_INTRO_MUSIC();
             }
-#endif
 #ifdef INACTIVITY_TIMEOUT_INTRO
             else if (A == 0x7f) {
                 REVERSE_MENU_OPTION(false);
@@ -3171,7 +3112,7 @@ void ELEVATOR_SELECT()
     ELEVATOR_INVERT();
     platform->renderFrame();
     // Now get user input
-    while (!platform->quit) {
+    while (!platform->quit && aptMainLoop()) {
         // KEYBOARD INPUT
         uint8_t A = platform->readKeyboard();
         // SNES INPUT
@@ -3202,9 +3143,9 @@ void ELEVATOR_SELECT()
             }
         }
 #ifdef PLATFORM_LIVE_MAP_SUPPORT
-        if (LIVE_MAP_ON == 1) {
+        // if (LIVE_MAP_ON == 1) {
             DRAW_LIVE_MAP();
-        }
+        // }
 #endif
         platform->renderFrame(true);
     }
@@ -3571,9 +3512,9 @@ void BACKGROUND_TASKS()
 {
     if (BGTIMER1 == 1) {
 #ifdef PLATFORM_LIVE_MAP_SUPPORT
-        if (LIVE_MAP_ON) {
+        // if (1) { //LIVE_MAP_ON
             DRAW_LIVE_MAP();
-        } else
+        // } else
 #endif
         if (REDRAW_WINDOW == 1) {
             REDRAW_WINDOW = 0;
@@ -4014,12 +3955,12 @@ void BIG_EXP_PHASE1()
     BEX_PART1(); // check center piece for unit
     BEXCEN(); // check center piece for unit
 #ifdef PLATFORM_LIVE_MAP_SUPPORT
-    if (LIVE_MAP_ON == 1) {
+    // if (LIVE_MAP_ON == 1) {
         GET_TILE_FROM_MAP();
         MAP_SOURCE[0] = 246;
         platform->renderLiveMapTile(MAP, MAP_X, MAP_Y);
         MAP_SOURCE[0] = TILE;
-    }
+    // }
 #endif
     BEX1_NORTH();
     BEX1_SOUTH();
@@ -4215,9 +4156,9 @@ void BEX_PART3()
 {
     MAP_SOURCE[0] = 246;
 #ifdef PLATFORM_LIVE_MAP_SUPPORT
-    if (LIVE_MAP_ON == 1) {
+    // if (LIVE_MAP_ON == 1) {
         platform->renderLiveMapTile(MAP, MAP_X, MAP_Y);
-    }
+    // }
 #endif
     BEXCEN();
 }
@@ -4341,17 +4282,17 @@ void RESTORE_TILE()
             MAP_SOURCE[0] = TEMP_A;
         }
 #ifdef PLATFORM_LIVE_MAP_SUPPORT
-        if (LIVE_MAP_ON == 1) {
+        // if (LIVE_MAP_ON == 1) {
             platform->renderLiveMapTile(MAP, MAP_X, MAP_Y);
-        }
+        // }
 #endif
     } else {
         // What to do if we encounter an explosive canister
         MAP_SOURCE[0] = 135; // Blown canister
 #ifdef PLATFORM_LIVE_MAP_SUPPORT
-        if (LIVE_MAP_ON == 1) {
+        // if (LIVE_MAP_ON == 1) {
             platform->renderLiveMapTile(MAP, MAP_X, MAP_Y);
-        }
+        // }
 #endif
         for (int X = 28; X != 32; X++) { // Start of weapons units
             if (UNIT_TYPE[X] == 0) {
@@ -4949,9 +4890,9 @@ void DRAW_VERTICAL_DOOR()
     MAP_SOURCE += 128;
     MAP_SOURCE[0] = DOORPIECE3;
 #ifdef PLATFORM_LIVE_MAP_SUPPORT
-    if (LIVE_MAP_ON == 1) {
+    // if (LIVE_MAP_ON == 1) {
         platform->renderLiveMapTile(MAP, UNIT_LOC_X[UNIT], UNIT_LOC_Y[UNIT]);
-    }
+    // }
 #endif
 }
 
@@ -4965,9 +4906,9 @@ void DRAW_HORIZONTAL_DOOR()
     MAP_SOURCE[1] = DOORPIECE2;
     MAP_SOURCE[2] = DOORPIECE3;
 #ifdef PLATFORM_LIVE_MAP_SUPPORT
-    if (LIVE_MAP_ON == 1) {
+    // if (LIVE_MAP_ON == 1) {
         platform->renderLiveMapTile(MAP, UNIT_LOC_X[UNIT], UNIT_LOC_Y[UNIT]);
-    }
+    // }
 #endif
 }
 uint8_t DOORPIECE1 = 0;
@@ -5805,7 +5746,11 @@ void convertToPETSCII(char* string)
 
 void writeToScreenMemory(address_t address, uint8_t value, uint8_t color, uint8_t yOffset)
 {
-    SCREEN_MEMORY[address] = value;
+    if(address < SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS)
+    {
+        SCREEN_MEMORY[address] = value;
+        ((PlatformCTR*)platform)->SCREEN_MEMORY[address] = value;
+    }
 #ifdef PLATFORM_COLOR_SUPPORT
     platform->writeToScreenMemory(address, value, color, yOffset);
 #else

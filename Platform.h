@@ -95,7 +95,8 @@ public:
         JoystickBitPlay,
         JoystickBitReverse,
         JoystickBitForward,
-        JoystickBitExtra
+        JoystickBitExtra,
+        JoystickBitTouch
     };
 
     enum JoystickMask {
@@ -110,7 +111,8 @@ public:
         JoystickPlay = (1 << JoystickBitPlay),
         JoystickReverse = (1 << JoystickBitReverse),
         JoystickForward = (1 << JoystickBitForward),
-        JoystickExtra = (1 << JoystickBitExtra)
+        JoystickExtra = (1 << JoystickBitExtra),
+        JoystickTouch = (1 << JoystickBitTouch)
     };
 
     enum CursorShape {

@@ -1,0 +1,4 @@
+--atlas -f rgba8888 -z auto
+faces/0.png
+faces/1.png
+faces/2.png
