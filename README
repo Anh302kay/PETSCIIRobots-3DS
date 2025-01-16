@@ -18,7 +18,7 @@ make CIA
 
 Requirements
 ------------
-DevkitPro with Citro2D, Citro3D, SDL2 for 3DS, and libctru
+DevkitPro with Citro2D, Citro3D, SDL2 for 3DS(which you can find instructions for at docs/README-n3ds.md in the SDL2 github), and libctru
 3DS with CFW
 
 Controls
