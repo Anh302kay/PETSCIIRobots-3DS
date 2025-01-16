@@ -201,7 +201,7 @@ static u32 tileMap[PLATFORM_MAP_WINDOW_TILES_HEIGHT * PLATFORM_MAP_WINDOW_TILES_
 
 void PlatformCTR::decodeTiles(u32* tileMap, int x, int y, bool queue)
 {
-    if(tileMap[(y) * PLATFORM_MAP_WINDOW_TILES_WIDTH + x] >= (1 << 18 )) {
+    if(tileMap[(y) * PLATFORM_MAP_WINDOW_TILES_WIDTH + x] >= (1 << 18 ) && !(tileMap[(y) * PLATFORM_MAP_WINDOW_TILES_WIDTH + x] & 0x3FFFF) ) {
         Sprite sprite;
         C2D_SpriteFromSheet(&sprite.sprite, animTilesSpritesheet, tileMap[(y) * PLATFORM_MAP_WINDOW_TILES_WIDTH + x] >> 18);
         C2D_SpriteSetPos(&sprite.sprite, (x) *24, (y) *24);
@@ -210,7 +210,7 @@ void PlatformCTR::decodeTiles(u32* tileMap, int x, int y, bool queue)
         return;
     }
 
-    if(tileMap[(y) * PLATFORM_MAP_WINDOW_TILES_WIDTH + x] > 256 ) {
+    if(tileMap[(y) * PLATFORM_MAP_WINDOW_TILES_WIDTH + x] > 255 ) {
         const u32 tile = tileMap[(y) * PLATFORM_MAP_WINDOW_TILES_WIDTH + x];
         Sprite background;
         C2D_SpriteFromSheet(&background.sprite, tile & 0x1 ? animTilesSpritesheet : tileSpritesheet, tile >> 2 & 0b11111111);
@@ -244,7 +244,7 @@ uint8_t unitY[48];
 PlatformCTR::PlatformCTR() :
     interrupt(0),
     audioSpec({0}),
-    // audioDeviceID(0),
+    audioDeviceID(0),
     palette(paletteIntro),
 #ifdef PLATFORM_CURSOR_SUPPORT
     cursorRect({0}),
@@ -297,6 +297,7 @@ PlatformCTR::PlatformCTR() :
     memset(SCREEN_MEMORY, 32, SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS);
 
     SDL_AudioSpec requestedAudioSpec;
+    // memset(&requestedAudioSpec, 0, sizeof(requestedAudioSpec));
     SDL_zero(requestedAudioSpec);
     requestedAudioSpec.freq = 44100;
     requestedAudioSpec.format = AUDIO_S16LSB;
@@ -733,12 +734,16 @@ void PlatformCTR::renderTiles(uint8_t backgroundTile, uint8_t foregroundTile, ui
         renderQueueTop.emplace_back(Ssprite);
         tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] |= 0x2;
         tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] |= sprite << 10;
+        if(sprite == 0) 
+            tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] |= 1 << 18;
     } else {
         Sprite Ssprite;
         C2D_SpriteFromSheet(&Ssprite.sprite, tileSpritesheet, foregroundTile);
         C2D_SpriteSetPos(&Ssprite.sprite, x, y);
         renderQueueTop.emplace_back(Ssprite);
         tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] |= foregroundTile << 10;
+        if(foregroundTile == 0) 
+            tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] |= 1 << 18;
     }
 }
 
