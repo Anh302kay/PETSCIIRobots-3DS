@@ -113,6 +113,38 @@ uint8_t SCREEN_MEMORY[SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS];
 
 int main(int argc, char *argv[])
 {
+    std::ifstream dspFile("/3ds/dspfirm.cdc");
+    bool exit = false;
+    if(!dspFile.good()) {
+        gfxInitDefault();
+        consoleInit(GFX_TOP, NULL);
+        printf("DSP firmware not found. Please dump DSP Firmware\n");
+        printf("If you are on Emulator, press X to continue\n");
+        printf("Otherwise, press Start to exit\n");
+        while (aptMainLoop()) {
+            hidScanInput();
+            u32 kDown = hidKeysDown();
+            if(kDown & KEY_START) {
+                exit = true;
+                break;
+            }
+            if(kDown & KEY_X) {
+                std::ofstream fakeDump("/3ds/dspfirm.cdc");
+                fakeDump.close();
+                break;
+            }
+            gfxFlushBuffers();
+            gfxSwapBuffers();
+            gspWaitForVBlank();
+        }
+        consoleClear();
+        gfxExit();
+    }
+    dspFile.close();
+    if(exit) {
+        return 0;
+    }
+
     PlatformClass platformInstance;
 
     if (!platform) {
