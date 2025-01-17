@@ -11,10 +11,19 @@ About
 - To port to a new platform, create a new PlatformXYZ.cpp/h implementation based on the existing ones and instantiate it in main() (petrobots.cpp)
 - If the target platform version will only support a certain feature set, feel free to get rid of the unnecessary PLATFORM_ #ifdefs manually or using a preprocessor
 
+FAQ
+------------
+Q:I can't move around and there is no sound?
+A:Dump your DSP firmware, and relaunch the game
+
 Building
 --------
 make
 make CIA
+
+Install
+------------
+Add the CIA file onto your SD Card and install it with FBI OR add the 3DSX file to the 3ds folder and run it with the Homebrew Menu
 
 Requirements
 ------------
@@ -33,3 +42,4 @@ SELECT+R / TOUCH cycle weapon
 TOUCH toggle live map robots
 SELECT / TOUCH +A pause
 SELECT / TOUCH +B toggle music
+Holding Touch Screen also makes it act as the select button
