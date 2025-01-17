@@ -955,7 +955,7 @@ void FIRE_UP_PISTOL()
         if (UNIT_TYPE[X] == 0) {
             UNIT_TYPE[X] = 12; // Fire pistol up AI routine
             UNIT_TILE[X] = 244; // tile for vertical weapons fire
-            UNIT_A[X] = 3; // travel distance.
+            UNIT_A[X] = 4; // travel distance.
             UNIT_B[X] = 0; // weapon-type = pistol
             AFTER_FIRE(X);
             return;
@@ -978,7 +978,7 @@ void FIRE_UP_PLASMA()
         if (UNIT_TYPE[X] == 0) {
             UNIT_TYPE[X] = 12; // Fire pistol up AI routine
             UNIT_TILE[X] = 240; // tile for vertical plasma bolt
-            UNIT_A[X] = 3; // travel distance.
+            UNIT_A[X] = 4; // travel distance.
             UNIT_B[X] = 1; // weapon-type = plasma
             PLASMA_ACT = 1;
             AFTER_FIRE(X);
@@ -1008,7 +1008,7 @@ void FIRE_DOWN_PISTOL()
         if (UNIT_TYPE[X] == 0) {
             UNIT_TYPE[X] = 13; // Fire pistol DOWN AI routine
             UNIT_TILE[X] = 244; // tile for vertical weapons fire
-            UNIT_A[X] = 3; // travel distance.
+            UNIT_A[X] = 4; // travel distance.
             UNIT_B[X] = 0; // weapon-type = pistol
             AFTER_FIRE(X);
             return;
@@ -1031,7 +1031,7 @@ void FIRE_DOWN_PLASMA()
         if (UNIT_TYPE[X] == 0) {
             UNIT_TYPE[X] = 13; // Fire pistol DOWN AI routine
             UNIT_TILE[X] = 240; // tile for vertical plasma bolt
-            UNIT_A[X] = 3; // travel distance.
+            UNIT_A[X] = 4; // travel distance.
             UNIT_B[X] = 1; // weapon-type = plasma
             PLASMA_ACT = 1;
             AFTER_FIRE(X);
@@ -1061,7 +1061,7 @@ void FIRE_LEFT_PISTOL()
         if (UNIT_TYPE[X] == 0) {
             UNIT_TYPE[X] = 14; // Fire pistol LEFT AI routine
             UNIT_TILE[X] = 245; // tile for horizontal weapons fire
-            UNIT_A[X] = 5; // travel distance.
+            UNIT_A[X] = 8; // travel distance.
             UNIT_B[X] = 0; // weapon-type = pistol
             AFTER_FIRE(X);
             return;
@@ -1084,7 +1084,7 @@ void FIRE_LEFT_PLASMA()
         if (UNIT_TYPE[X] == 0) {
             UNIT_TYPE[X] = 14; // Fire pistol LEFT AI routine
             UNIT_TILE[X] = 241; // tile for horizontal weapons fire
-            UNIT_A[X] = 5; // travel distance.
+            UNIT_A[X] = 8; // travel distance.
             UNIT_B[X] = 1; // weapon-type = plasma
             PLASMA_ACT = 1;
             AFTER_FIRE(X);
@@ -1114,7 +1114,7 @@ void FIRE_RIGHT_PISTOL()
         if (UNIT_TYPE[X] == 0) {
             UNIT_TYPE[X] = 15; // Fire pistol RIGHT AI routine
             UNIT_TILE[X] = 245; // tile for horizontal weapons fire
-            UNIT_A[X] = 5; // travel distance.
+            UNIT_A[X] = 8; // travel distance.
             UNIT_B[X] = 0; // weapon-type = pistol
             AFTER_FIRE(X);
             return;
@@ -1137,7 +1137,7 @@ void FIRE_RIGHT_PLASMA()
         if (UNIT_TYPE[X] == 0) {
             UNIT_TYPE[X] = 15; // Fire pistol RIGHT AI routine
             UNIT_TILE[X] = 241; // tile for horizontal weapons fire
-            UNIT_A[X] = 5; // travel distance.
+            UNIT_A[X] = 8; // travel distance.
             UNIT_B[X] = 1; // weapon-type = plasma
             PLASMA_ACT = 1;
             AFTER_FIRE(X);
