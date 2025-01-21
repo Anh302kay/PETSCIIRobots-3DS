@@ -9,4 +9,6 @@ x64
 .vscode
 build/
 PETSCIIRobots-3DS.*
+PETSCIIRobots-3DS-strip.*
 romfs/*.t3x
+romfs/*.bnr

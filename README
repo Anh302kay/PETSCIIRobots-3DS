@@ -18,6 +18,7 @@ A:Dump your DSP firmware, and relaunch the game
 
 Building
 --------
+Install DevkitPro, and use pacman provided by DevkitPro to install libctru, citro3d, and citro2d. Run the SDL2 build script to install the 3DS version of SDL2. Then run the two following commands:
 make
 make CIA
 
@@ -28,7 +29,6 @@ If you are on emulator, drag and drop the 3dsx file or install the CIA, and foll
 
 Requirements
 ------------
-DevkitPro with Citro2D, Citro3D, SDL2 for 3DS(which you can find instructions for at docs/README-n3ds.md in the SDL2 github), and libctru
 3DS with CFW
 
 Controls
