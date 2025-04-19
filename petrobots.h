@@ -362,11 +362,11 @@ void PET_SCREEN_SHAKE();
 void PET_BORDER_FLASH();
 
 extern uint8_t FLASH_STATE;
-#ifndef PLATFORM_IMAGE_SUPPORT
+
 extern uint8_t OUCH1[];
 extern uint8_t OUCH2[];
 extern uint8_t OUCH3[];
-#endif
+
 
 void DEMATERIALIZE();
 void ANIMATE_PLAYER();
@@ -481,7 +481,7 @@ extern uint8_t SCR_ENDGAME[];
 #endif
 extern uint8_t SCR_CUSTOM_KEYS[];
 extern char CINEMA_MESSAGE[];
-#ifndef PLATFORM_IMAGE_SUPPORT
+
 extern uint8_t WEAPON1A[];
 extern uint8_t WEAPON1B[];
 extern uint8_t WEAPON1C[];
@@ -506,7 +506,7 @@ extern uint8_t MED1A[];
 extern uint8_t MED1B[];
 extern uint8_t MED1C[];
 extern uint8_t MED1D[];
-#endif
+
 #ifndef PLATFORM_MODULE_BASED_AUDIO
 extern uint8_t NOTE_FREQ[];
 extern uint8_t NOTE_OCTAVE[];

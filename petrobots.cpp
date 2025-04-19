@@ -373,7 +373,8 @@ void RUNIRQ()
     }
     if (BORDER != 0) {
         BORDER--;
-        platform->fadeScreen(15 - BORDER);
+        if(!((PlatformCTR*)platform)->petMode)
+            platform->fadeScreen(15 - BORDER);
     }
 #ifdef PLATFORM_HARDWARE_BASED_SHAKE_SCREEN
     if (CLOCK_ACTIVE != 0 && SCREEN_SHAKE != 0) {
@@ -457,12 +458,38 @@ void MAIN_GAME_LOOP()
         KEY_REPEAT(platform->isKeyOrJoystickPressed(CONTROL >= 2 ? true : false));
         uint16_t B = platform->readJoystick(CONTROL >= 2 ? true : false);
         static touchPosition touch;
+        static bool petSwitched = false;
+        const u32 kDown = hidKeysDown();
+        const u32 kHeld = hidKeysHeld();
+        const u32 kUp = hidKeysUp();
 
-        if(hidKeysDown() & KEY_TOUCH) {
+        if(kDown & KEY_TOUCH) {
             hidTouchRead(&touch);
         }
 
-        if (hidKeysUp() & KEY_TOUCH && B & Platform::JoystickTouch) {
+        if((kHeld & KEY_START) && (kHeld & KEY_SELECT) && (kHeld & KEY_L) && (kHeld & KEY_R) && !petSwitched) {
+            petSwitched = true;
+            ((PlatformCTR*)platform)->petMode = !((PlatformCTR*)platform)->petMode;
+            platform->clearRect(27, 253, 270, 80);
+            DISPLAY_GAME_SCREEN();
+            INVALIDATE_PREVIOUS_MAP();
+            CACULATE_AND_REDRAW();
+            ANIMATE_PLAYER();
+            DRAW_MAP_WINDOW();
+
+            DISPLAY_PLAYER_HEALTH();
+            DISPLAY_WEAPON();
+            DISPLAY_ITEM();
+            DISPLAY_KEYS();
+            platform->renderLiveMap(MAP);
+
+
+        }
+        else if((kUp & KEY_START) || (kUp & KEY_SELECT) || (kUp & KEY_L) || (kUp & KEY_R)) {
+            petSwitched = false;
+        }
+
+        if (kUp & KEY_TOUCH && B & Platform::JoystickTouch) {
             if(touch.px > 28 && touch.py > 14 && touch.px < 28+48 && touch.py < 23+51) {
                 CYCLE_WEAPON();
                 KEYTIMER = 15;
@@ -526,145 +553,55 @@ void MAIN_GAME_LOOP()
                     }
                 }
             }
-            // Now check for non-repeating buttons
-            switch (CONTROL) {
-            case 3:
-                if (B & Platform::JoystickPlay) {
-                    if (B & Platform::JoystickLeft) {
-                        FIRE_LEFT();
-                        KEYTIMER = 20;
-                    }
-                    if (B & Platform::JoystickRight) {
-                        FIRE_RIGHT();
-                        KEYTIMER = 20;
-                    }
-                    if (B & Platform::JoystickUp) {
-                        FIRE_UP();
-                        KEYTIMER = 20;
-                    }
-                    if (B & Platform::JoystickDown) {
-                        FIRE_DOWN();
-                        KEYTIMER = 20;
-                    }
-                    if (B & Platform::JoystickExtra) {
-                        TOGGLE_MUSIC();
-                        CLEAR_KEY_BUFFER();
-                    }
-                    if (B & Platform::JoystickYellow) {
-                        TOGGLE_LIVE_MAP_ROBOTS();
-                        CLEAR_KEY_BUFFER();
-                    }
-                } else {
-                    if (B & Platform::JoystickYellow) {
-                        TOGGLE_LIVE_MAP();
-                        CLEAR_KEY_BUFFER();
-                    }
-                    if (B & Platform::JoystickGreen) {
-                        CYCLE_ITEM();
-                        KEYTIMER = 15;
-                    }
-                    if (B & Platform::JoystickBlue) {
-                        CYCLE_WEAPON();
-                        KEYTIMER = 15;
-                    }
-                    if (B & Platform::JoystickRed) {
-                        USE_ITEM();
-                        KEYTIMER = 15;
-                    }
-                    if (B & Platform::JoystickReverse) {
-                        SEARCH_OBJECT();
-                        KEYTIMER = 15;
-                    }
-                    if (B & Platform::JoystickForward) {
-                        MOVE_OBJECT();
-                        KEYTIMER = 15;
-                    }
-                    if (B & Platform::JoystickExtra) {
-                        done = PAUSE_GAME();
-                    }
+            // non repeating buttons
+            if (B & Platform::JoystickPlay) {
+                if (B & Platform::JoystickReverse && !(B & Platform::JoystickExtra)) {
+                    CYCLE_ITEM();
+                    KEYTIMER = 15;
                 }
-                break;
-            case 2:
-                if (B & Platform::JoystickPlay) {
-                    if (B & Platform::JoystickReverse) {
-                        CYCLE_ITEM();
-                        KEYTIMER = 15;
-                    }
-                    if (B & Platform::JoystickForward) {
-                        CYCLE_WEAPON();
-                        KEYTIMER = 15;
-                    }
+                if (B & Platform::JoystickForward && !(B & Platform::JoystickExtra)) {
+                    CYCLE_WEAPON();
+                    KEYTIMER = 15;
+                }
 
-                    if (B & Platform::JoystickBlue) {
-                        done = PAUSE_GAME();
-                    }
-                    if (B & Platform::JoystickRed) {
-                        TOGGLE_MUSIC();
-                        CLEAR_KEY_BUFFER();
-                    }
-#ifdef GAMEPAD_CD32
-                    if (B == Platform::JoystickPlay) {
-                        USE_ITEM();
-                        KEYTIMER = 15;
-                    }
-#endif
-                } else {
-                    if (B & Platform::JoystickGreen) {
-                        FIRE_LEFT();
-                        KEYTIMER = 20;
-                    }
-                    if (B & Platform::JoystickBlue) {
-                        FIRE_RIGHT();
-                        KEYTIMER = 20;
-                    }
-                    if (B & Platform::JoystickYellow) {
-                        FIRE_UP();
-                        KEYTIMER = 20;
-                    }
-                    if (B & Platform::JoystickRed) {
-                        FIRE_DOWN();
-                        KEYTIMER = 20;
-                    }
-                    if (B & Platform::JoystickReverse) {
-                        SEARCH_OBJECT();
-                        KEYTIMER = 15;
-                    }
-                    if (B & Platform::JoystickForward) {
-                        MOVE_OBJECT();
-                        KEYTIMER = 15;
-                    }
-#ifndef GAMEPAD_CD32
-                    if (B == Platform::JoystickExtra) {
-                        USE_ITEM();
-                        KEYTIMER = 15;
-                    }
-#endif
-                }
-                break;
-            default:
                 if (B & Platform::JoystickBlue) {
-                    if (B & Platform::JoystickLeft) {
-                        CYCLE_ITEM();
-                        KEYTIMER = 15;
-                    }
-                    if (B & Platform::JoystickRight) {
-                        CYCLE_WEAPON();
-                        KEYTIMER = 15;
-                    }
-                    if (B & Platform::JoystickUp) {
-                        MOVE_OBJECT();
-                        KEYTIMER = 15;
-                    }
-                    if (B & Platform::JoystickDown) {
-                        SEARCH_OBJECT();
-                        KEYTIMER = 15;
-                    }
-                    if (B == Platform::JoystickBlue) {
-                        USE_ITEM();
-                        KEYTIMER = 15;
-                    }
+                    done = PAUSE_GAME();
                 }
-                break;
+                if (B & Platform::JoystickRed) {
+                    TOGGLE_MUSIC();
+                    CLEAR_KEY_BUFFER();
+                }
+
+            } else {
+                if (B & Platform::JoystickGreen) {
+                    FIRE_LEFT();
+                    KEYTIMER = 20;
+                }
+                if (B & Platform::JoystickBlue) {
+                    FIRE_RIGHT();
+                    KEYTIMER = 20;
+                }
+                if (B & Platform::JoystickYellow) {
+                    FIRE_UP();
+                    KEYTIMER = 20;
+                }
+                if (B & Platform::JoystickRed) {
+                    FIRE_DOWN();
+                    KEYTIMER = 20;
+                }
+                if (B & Platform::JoystickReverse) {
+                    SEARCH_OBJECT();
+                    KEYTIMER = 15;
+                }
+                if (B & Platform::JoystickForward) {
+                    MOVE_OBJECT();
+                    KEYTIMER = 15;
+                }
+                if (B == Platform::JoystickExtra) {
+                    USE_ITEM();
+                    KEYTIMER = 15;
+                }
+
             }
         }
     }
@@ -1629,7 +1566,13 @@ void DRAW_MAP_WINDOW()
             case 66:  // FLAG
             case 148: // TRASH COMPACTOR
             case 143: // SERVER
+            case 221: // WATER HANDRAIL
+                if(!((PlatformCTR*)platform)->petMode)
                 VARIANT = ANIM_STATE & 3;
+                else if (TILE == 143)
+                VARIANT = ANIM_STATE & 1;
+                else
+                VARIANT = ANIM_STATE % 3;
                 break;
             case 196: // HVAC
             case 197:
@@ -1703,20 +1646,20 @@ void DRAW_MAP_WINDOW()
                     switch (TILE) {
                     case 20: {
                         platform->waitForScreenMemoryAccess();
-                        platform->writeToScreenMemory(MAP_CHART[TEMP_Y] + TEMP_X + TEMP_X + TEMP_X + SCREEN_WIDTH_IN_CHARACTERS + 1, CINEMA_MESSAGE[CINEMA_STATE], 1, 0);
-                        platform->writeToScreenMemory(MAP_CHART[TEMP_Y] + TEMP_X + TEMP_X + TEMP_X + SCREEN_WIDTH_IN_CHARACTERS + 2, CINEMA_MESSAGE[CINEMA_STATE + 1], 1, 0);
+                        platform->writeToScreenMemory(MAP_CHART[TEMP_Y] + TEMP_X + TEMP_X + TEMP_X + SCREEN_WIDTH_IN_CHARACTERS + 1, CINEMA_MESSAGE[CINEMA_STATE], 1 + ((PlatformCTR*)platform)->petMode * 15, 0);
+                        platform->writeToScreenMemory(MAP_CHART[TEMP_Y] + TEMP_X + TEMP_X + TEMP_X + SCREEN_WIDTH_IN_CHARACTERS + 2, CINEMA_MESSAGE[CINEMA_STATE + 1], 1 + ((PlatformCTR*)platform)->petMode * 15, 0);
                         break;
                     }
                     case 21: {
                         platform->waitForScreenMemoryAccess();
-                        platform->writeToScreenMemory(MAP_CHART[TEMP_Y] + TEMP_X + TEMP_X + TEMP_X + SCREEN_WIDTH_IN_CHARACTERS + 0, CINEMA_MESSAGE[CINEMA_STATE + 2], 1, 0);
-                        platform->writeToScreenMemory(MAP_CHART[TEMP_Y] + TEMP_X + TEMP_X + TEMP_X + SCREEN_WIDTH_IN_CHARACTERS + 1, CINEMA_MESSAGE[CINEMA_STATE + 3], 1, 0);
-                        platform->writeToScreenMemory(MAP_CHART[TEMP_Y] + TEMP_X + TEMP_X + TEMP_X + SCREEN_WIDTH_IN_CHARACTERS + 2, CINEMA_MESSAGE[CINEMA_STATE + 4], 1, 0);
+                        platform->writeToScreenMemory(MAP_CHART[TEMP_Y] + TEMP_X + TEMP_X + TEMP_X + SCREEN_WIDTH_IN_CHARACTERS + 0, CINEMA_MESSAGE[CINEMA_STATE + 2], 1 + ((PlatformCTR*)platform)->petMode * 15, 0);
+                        platform->writeToScreenMemory(MAP_CHART[TEMP_Y] + TEMP_X + TEMP_X + TEMP_X + SCREEN_WIDTH_IN_CHARACTERS + 1, CINEMA_MESSAGE[CINEMA_STATE + 3], 1 + ((PlatformCTR*)platform)->petMode * 15, 0);
+                        platform->writeToScreenMemory(MAP_CHART[TEMP_Y] + TEMP_X + TEMP_X + TEMP_X + SCREEN_WIDTH_IN_CHARACTERS + 2, CINEMA_MESSAGE[CINEMA_STATE + 4], 1 + ((PlatformCTR*)platform)->petMode * 15, 0);
                         break;
                     }
                     case 22: {
                         platform->waitForScreenMemoryAccess();
-                        platform->writeToScreenMemory(MAP_CHART[TEMP_Y] + TEMP_X + TEMP_X + TEMP_X + SCREEN_WIDTH_IN_CHARACTERS + 0, CINEMA_MESSAGE[CINEMA_STATE + 5], 1, 0);
+                        platform->writeToScreenMemory(MAP_CHART[TEMP_Y] + TEMP_X + TEMP_X + TEMP_X + SCREEN_WIDTH_IN_CHARACTERS + 0, CINEMA_MESSAGE[CINEMA_STATE + 5], 1 + ((PlatformCTR*)platform)->petMode * 15, 0);
                         break;
                     }
                     default:
@@ -2014,7 +1957,7 @@ void TILE_LOAD_ROUTINE()
     DESTRUCT_PATH = tileset + 2 + 0 * 256;
     TILE_ATTRIB = tileset + 2 + 1 * 256;
 #ifdef PLATFORM_SPRITE_SUPPORT
-    platform->generateTiles(0, TILE_ATTRIB);
+    // platform->generateTiles(0, TILE_ATTRIB);
 #else
     TILE_DATA_TL = tileset + 2 + 2 * 256;
     TILE_DATA_TM = tileset + 2 + 3 * 256;
@@ -2039,13 +1982,23 @@ void DISPLAY_GAME_SCREEN()
 {
 #ifdef PLATFORM_IMAGE_SUPPORT
     platform->displayImage(Platform::ImageGame);
+    if(!((PlatformCTR*)platform)->petMode) {
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 30, 0x71, 15);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 31, 0x71, 15);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 32, 0x71, 12);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 33, 0x71, 12);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 34, 0x71, 9);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 35, 0x71, 9);
+    }
+    else {
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 4) + 31, 0x71, 10);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 4) + 32, 0x71, 10);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 4) + 33, 0x71, 10);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 4) + 34, 0x71, 10);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 4) + 35, 0x71, 10);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 4) + 36, 0x71, 10);
+    }
 
-    writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 30, 0x71, 15);
-    writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 31, 0x71, 15);
-    writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 32, 0x71, 12);
-    writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 33, 0x71, 12);
-    writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 34, 0x71, 9);
-    writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 11) + 35, 0x71, 9);
 #else
     DECOMPRESS_SCREEN(SCR_TEXT);
 #endif
@@ -2059,7 +2012,7 @@ char INTRO_OPTIONS[] = "start game"
 void DISPLAY_INTRO_SCREEN()
 {
 #ifdef PLATFORM_IMAGE_SUPPORT
-    uint8_t* row = SCREEN_MEMORY + MENU_CHART[0];
+    uint8_t* row = SCREEN_MEMORY + MENU_CHART[0] + ( SCREEN_WIDTH_IN_CHARACTERS * 3 + 5) * ((PlatformCTR*)platform)->petMode;
     for (int Y = 0, i = 0; Y < PLATFORM_INTRO_OPTIONS; Y++, row += SCREEN_WIDTH_IN_CHARACTERS) {
         for (int X = 0; X < 10; X++, i++) {
             row[X] = INTRO_OPTIONS[i];
@@ -2074,6 +2027,7 @@ void DISPLAY_INTRO_SCREEN()
 void DISPLAY_ENDGAME_SCREEN()
 {
     int X;
+    bool petMode = ((PlatformCTR*)platform)->petMode;
 #ifdef PLATFORM_IMAGE_SUPPORT
     platform->displayImage(Platform::ImageGameOver);
 #else
@@ -2081,41 +2035,81 @@ void DISPLAY_ENDGAME_SCREEN()
 #endif
     platform->clearRect(0, 240, 320, 240);
     // display map name
-    char* name = CALC_MAP_NAME();
-    for (int Y = 0; Y != 16; Y++) {
-        writeToScreenMemory(7 * SCREEN_WIDTH_IN_CHARACTERS + 22 + Y, name[Y], 4);
-    }
-    // display elapsed time
-    DECNUM = HOURS;
-    DECWRITE(9 * SCREEN_WIDTH_IN_CHARACTERS + 21, 4);
-    DECNUM = MINUTES;
-    DECWRITE(9 * SCREEN_WIDTH_IN_CHARACTERS + 24, 4);
-    DECNUM = SECONDS;
-    DECWRITE(9 * SCREEN_WIDTH_IN_CHARACTERS + 27, 4);
-    writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS + 21, 32, 4); // SPACE
-    writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS + 24, 58, 4); // COLON
-    writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS + 27, 58, 4);
-    // count robots remaining
-    DECNUM = 0;
-    for (X = 1; X != 28; X++) {
-        if (UNIT_TYPE[X] != 0) {
-            DECNUM++;
+    if(!petMode) {
+        char* name = CALC_MAP_NAME();
+        for (int Y = 0; Y != 16; Y++) {
+            writeToScreenMemory(7 * SCREEN_WIDTH_IN_CHARACTERS + 22 + Y, name[Y], 4);
+        }
+        // display elapsed time
+        DECNUM = HOURS;
+        DECWRITE(9 * SCREEN_WIDTH_IN_CHARACTERS + 21, 4);
+        DECNUM = MINUTES;
+        DECWRITE(9 * SCREEN_WIDTH_IN_CHARACTERS + 24, 4);
+        DECNUM = SECONDS;
+        DECWRITE(9 * SCREEN_WIDTH_IN_CHARACTERS + 27, 4);
+        writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS + 21, 32, 4); // SPACE
+        writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS + 24, 58, 4); // COLON
+        writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS + 27, 58, 4);
+        // count robots remaining
+        DECNUM = 0;
+        for (X = 1; X != 28; X++) {
+            if (UNIT_TYPE[X] != 0) {
+                DECNUM++;
+            }
+        }
+        DECWRITE(11 * SCREEN_WIDTH_IN_CHARACTERS + 22, 4);
+        // Count secrets remaining
+        DECNUM = 0;
+        for (X = 48; X != 64; X++) {
+            if (UNIT_TYPE[X] != 0) {
+                DECNUM++;
+            }
+        }
+        DECWRITE(13 * SCREEN_WIDTH_IN_CHARACTERS + 22, 4);
+        // display difficulty level
+        char* WORD = DIFF_LEVEL_WORDS + (DIFF_LEVEL * 6);
+        for (X = 0; X < 6; X++) {
+            writeToScreenMemory(15 * SCREEN_WIDTH_IN_CHARACTERS + 22 + X, WORD[X], 4);
         }
     }
-    DECWRITE(11 * SCREEN_WIDTH_IN_CHARACTERS + 22, 4);
-    // Count secrets remaining
-    DECNUM = 0;
-    for (X = 48; X != 64; X++) {
-        if (UNIT_TYPE[X] != 0) {
-            DECNUM++;
+    else {
+        char* name = CALC_MAP_NAME();
+        for (int Y = 0; Y != 16; Y++) {
+            writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS + 27 + Y, name[Y], 4, 5);
+        }
+        // display elapsed time
+        DECNUM = HOURS;
+        DECWRITE(11 * SCREEN_WIDTH_IN_CHARACTERS + 26, 4, 5);
+        DECNUM = MINUTES;
+        DECWRITE(11 * SCREEN_WIDTH_IN_CHARACTERS + 29, 4, 5);
+        DECNUM = SECONDS;
+        DECWRITE(11 * SCREEN_WIDTH_IN_CHARACTERS + 32, 4, 5);
+        writeToScreenMemory(11 * SCREEN_WIDTH_IN_CHARACTERS + 26, 32, 4, 5); // SPACE
+        writeToScreenMemory(11 * SCREEN_WIDTH_IN_CHARACTERS + 29, 58, 4, 5); // COLON
+        writeToScreenMemory(11 * SCREEN_WIDTH_IN_CHARACTERS + 32, 58, 4, 5);
+        // count robots remaining
+        DECNUM = 0;
+        for (X = 1; X != 28; X++) {
+            if (UNIT_TYPE[X] != 0) {
+                DECNUM++;
+            }
+        }
+        DECWRITE(13 * SCREEN_WIDTH_IN_CHARACTERS + 27, 4, 5);
+        // Count secrets remaining
+        DECNUM = 0;
+        for (X = 48; X != 64; X++) {
+            if (UNIT_TYPE[X] != 0) {
+                DECNUM++;
+            }
+        }
+        DECWRITE(15 * SCREEN_WIDTH_IN_CHARACTERS + 27, 4, 5);
+        // display difficulty level
+        char* WORD = DIFF_LEVEL_WORDS + (DIFF_LEVEL * 6);
+        for (X = 0; X < 6; X++) {
+            writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS + 27 + X, WORD[X], 4, 5);
         }
     }
-    DECWRITE(13 * SCREEN_WIDTH_IN_CHARACTERS + 22, 4);
-    // display difficulty level
-    char* WORD = DIFF_LEVEL_WORDS + (DIFF_LEVEL * 6);
-    for (X = 0; X < 6; X++) {
-        writeToScreenMemory(15 * SCREEN_WIDTH_IN_CHARACTERS + 22 + X, WORD[X], 4);
-    }
+
 
 }
 
@@ -2156,20 +2150,33 @@ void DISPLAY_PLAYER_HEALTH()
 {
     TEMP_A = UNIT_HEALTH[0] >> 1; // No index needed because it is the player, divide by two
     int Y = 0;
-    while (Y != TEMP_A) {
-        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 10) + 30 + Y++, 0x66); // GRAY BLOCK
+    PlatformCTR* platformCtr = (PlatformCTR*)platform;
+    if(!platformCtr->petMode) {
+        while (Y != TEMP_A) {
+            writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 10) + 30 + Y++, 0x66); // GRAY BLOCK
+        }
+        if (UNIT_HEALTH[0] & 0x01) {
+            writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 10) + 30 + Y++, 0x5C); // HALF GRAY BLOCK
+        }
+        while (Y != 6) {
+            writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 10) + 30 + Y++, 0x20); // SPACE
+        }
+    
+        int health = 5 - MIN(TEMP_A, 5);
+        platform->renderHealth(health, 243, 23);
     }
-    if (UNIT_HEALTH[0] & 0x01) {
-        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 10) + 30 + Y++, 0x5C); // HALF GRAY BLOCK
-    }
-    while (Y != 6) {
-        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 10) + 30 + Y++, 0x20); // SPACE
+    else {
+        while (Y != TEMP_A) {
+            writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 3) + 31 + Y++, 0x66); // GRAY BLOCK
+        }
+        if (UNIT_HEALTH[0] & 0x01) {
+            writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 3) + 31 + Y++, 0x5C); // HALF GRAY BLOCK
+        }
+        while (Y != 6) {
+            writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 3) + 31 + Y++, 0x20); // SPACE
+        }
     }
 
-#ifdef PLATFORM_IMAGE_SUPPORT
-    int health = 5 - MIN(TEMP_A, 5);
-    platform->renderHealth(health, 243, 23);
-#endif
 }
 
 void CYCLE_ITEM()
@@ -2264,7 +2271,10 @@ void DISPLAY_TIMEBOMB()
 #ifdef PLATFORM_IMAGE_SUPPORT
     platform->renderItem(5, 99, 23);
     DECNUM = INV_BOMBS;
-    DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 15, 1);
+    if(!((PlatformCTR*)platform)->petMode)
+        DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 15, 1);
+    else
+        DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 7) + 15, 1);
 #else
     for (int Y = 0; Y != 6; Y++) {
         writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, TBOMB1A[Y]);
@@ -2282,7 +2292,10 @@ void DISPLAY_EMP()
 #ifdef PLATFORM_IMAGE_SUPPORT
     platform->renderItem(3, 99, 23);
     DECNUM = INV_EMP;
-    DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 15, 1);
+    if(!((PlatformCTR*)platform)->petMode)
+        DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 15, 1);
+    else
+        DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 7) + 15, 1);
 #else
     for (int Y = 0; Y != 6; Y++) {
         writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, EMP1A[Y]);
@@ -2300,7 +2313,10 @@ void DISPLAY_MEDKIT()
 #ifdef PLATFORM_IMAGE_SUPPORT
     platform->renderItem(2, 99, 23);
     DECNUM = INV_MEDKIT;
-    DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 15, 1);
+    if(!((PlatformCTR*)platform)->petMode)
+        DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 15, 1);
+    else
+        DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 7) + 15, 1);
 #else
     for (int Y = 0; Y != 6; Y++) {
         writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, MED1A[Y]);
@@ -2318,7 +2334,10 @@ void DISPLAY_MAGNET()
 #ifdef PLATFORM_IMAGE_SUPPORT
     platform->renderItem(4, 99, 23);
     DECNUM = INV_MAGNET;
-    DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 15, 1);
+    if(!((PlatformCTR*)platform)->petMode)
+        DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 15, 1);
+    else
+        DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 7) + 15, 1);
 #else
     for (int Y = 0; Y != 6; Y++) {
         writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, MAG1A[Y]);
@@ -2334,7 +2353,7 @@ void DISPLAY_MAGNET()
 void DISPLAY_BLANK_ITEM()
 {
 #ifdef PLATFORM_IMAGE_SUPPORT
-    platform->clearRect(99, 23 + 240, 48, 40);
+    platform->clearRect(99, 23 + 240, 48, 48);
 #else
     platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 64, 48, 40);
     /*
@@ -2420,41 +2439,36 @@ void DISPLAY_PLASMA_GUN()
 #ifdef PLATFORM_IMAGE_SUPPORT
     platform->renderItem(1, 28, 23);
     DECNUM = AMMO_PLASMA;
+    if(!((PlatformCTR*)platform)->petMode)
     DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 7, 1);
+    else
+    DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 7) + 7, 1);
 #else
     for (int Y = 0; Y != 6; Y++) {
-        writeToScreenMemory(2 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, WEAPON1A[Y]);
-        writeToScreenMemory(3 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, WEAPON1B[Y]);
-        writeToScreenMemory(4 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, WEAPON1C[Y]);
-        writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, WEAPON1D[Y]);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 3) + 3 + Y, WEAPON1A[Y]);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 4) + 3 + Y, WEAPON1B[Y]);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 3 + Y, WEAPON1C[Y]);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 6) + 3 + Y, WEAPON1D[Y]);
     }
     DECNUM = AMMO_PLASMA;
-    DECWRITE(6 * SCREEN_WIDTH_IN_CHARACTERS - 3);
+    DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 7, 1);
 #endif
 }
 
 void DISPLAY_PISTOL()
 {
-#ifdef PLATFORM_IMAGE_SUPPORT
     platform->renderItem(0, 28, 23);
     DECNUM = AMMO_PISTOL;
-    DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 7, 1);
-#else
-    for (int Y = 0; Y != 6; Y++) {
-        writeToScreenMemory(2 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, PISTOL1A[Y]);
-        writeToScreenMemory(3 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, PISTOL1B[Y]);
-        writeToScreenMemory(4 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, PISTOL1C[Y]);
-        writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, PISTOL1D[Y]);
-    }
-    DECNUM = AMMO_PISTOL;
-    DECWRITE(6 * SCREEN_WIDTH_IN_CHARACTERS - 3);
-#endif
+    if(!((PlatformCTR*)platform)->petMode)
+        DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 7, 1);
+    else
+        DECWRITE(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 7) + 7, 1);
 }
 
 void DISPLAY_BLANK_WEAPON()
 {
 #ifdef PLATFORM_IMAGE_SUPPORT
-    platform->clearRect(27, 23 + 240, 55, 32);
+    platform->clearRect(27, 23 + 240, 55, 40);
 #else
     platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 16, 48, 32);
     /*
@@ -2471,52 +2485,38 @@ void DISPLAY_BLANK_WEAPON()
 
 void DISPLAY_KEYS()
 {
-#ifdef PLATFORM_IMAGE_SUPPORT
-//    platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 106, 48, 14); // ERASE ALL 3 SPOTS
+    if(!((PlatformCTR*)platform)->petMode) {
+    //    platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 106, 48, 14); // ERASE ALL 3 SPOTS
+        if (KEYS & 0x01) { // %00000001 Spade key
+            platform->renderKey(0, 171, 23);
+        }
+        if (KEYS & 0x02) { // %00000010 heart key
+            platform->renderKey(1, 171 + 16, 23);
+        }
+        if (KEYS & 0x04) { // %00000100 star key
+            platform->renderKey(2, 171 + 32, 23);
+        }
+        // platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 120, 48, 16); // ERASE ALL 3 SPOTS
+        return;
+    }
     if (KEYS & 0x01) { // %00000001 Spade key
-        platform->renderKey(0, 171, 23);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 3) + 23, 0x63);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 3) + 24, 0x4D);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 4) + 23, 0x41);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 4) + 24, 0x67);
     }
     if (KEYS & 0x02) { // %00000010 heart key
-        platform->renderKey(1, 171 + 16, 23);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 23, 0x63);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 24, 0x4D);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 6) + 23, 0x53);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 6) + 24, 0x67);
     }
     if (KEYS & 0x04) { // %00000100 star key
-        platform->renderKey(2, 171 + 32, 23);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 7) + 23, 0x63);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 7) + 24, 0x4D);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 8) + 23, 0x2A);
+        writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 8) + 24, 0x67);
     }
-#else
-//    platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 120, 48, 16); // ERASE ALL 3 SPOTS
-    /*
-    writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 6, 32); // ERASE ALL 3 SPOTS
-    writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 5, 32);
-    writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 4, 32);
-    writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 3, 32);
-    writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 2, 32);
-    writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 1, 32);
-    writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 6, 32);
-    writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 5, 32);
-    writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 4, 32);
-    writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 3, 32);
-    writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 2, 32);
-    writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 1, 32);
-    */
-    if (KEYS & 0x01) { // %00000001 Spade key
-        writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 6, 0x63);
-        writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 5, 0x4D);
-        writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 6, 0x41);
-        writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 5, 0x67);
-    }
-    if (KEYS & 0x02) { // %00000010 heart key
-        writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 4, 0x63);
-        writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 3, 0x4D);
-        writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 4, 0x53);
-        writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 3, 0x67);
-    }
-    if (KEYS & 0x04) { // %00000100 star key
-        writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 2, 0x63);
-        writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 1, 0x4D);
-        writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 2, 0x2A);
-        writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 1, 0x67);
-    }
-#endif
 }
 
 void GAME_OVER()
@@ -2608,7 +2608,7 @@ void DISPLAY_WIN_LOSE()
     if (UNIT_TYPE[0] != 0) {
         // WIN MESSAGE
         for (int X = 0; X != 8; X++) {
-            writeToScreenMemory(4 * SCREEN_WIDTH_IN_CHARACTERS + 16 + X, WIN_MSG[X], 4, 1);
+            writeToScreenMemory(4 * SCREEN_WIDTH_IN_CHARACTERS + 16 + X + (5 * ((PlatformCTR*)platform)->petMode), WIN_MSG[X], 4, 1);
         }
 #ifdef PLATFORM_MODULE_BASED_AUDIO
         if (MUSIC_ON == 1) {
@@ -2620,7 +2620,7 @@ void DISPLAY_WIN_LOSE()
     } else {
         // LOSE MESSAGE
         for (int X = 0; X != 9; X++) {
-            writeToScreenMemory(4 * SCREEN_WIDTH_IN_CHARACTERS + 16 + X, LOS_MSG[X], 4, 1);
+            writeToScreenMemory(4 * SCREEN_WIDTH_IN_CHARACTERS + 16 + X + (5 * ((PlatformCTR*)platform)->petMode), LOS_MSG[X], 4, 1);
         }
 #ifdef PLATFORM_MODULE_BASED_AUDIO
         if (MUSIC_ON == 1) {
@@ -2725,6 +2725,20 @@ void INTRO_SCREEN()
     while (!done && !platform->quit && aptMainLoop()) {
         uint8_t A = platform->readKeyboard();
         const uint16_t B = platform->readJoystick(false);
+        const u32 kHeld = hidKeysHeld();
+        const u32 kUp = hidKeysUp();
+        static bool petSwitched = false;
+        if((kHeld & KEY_START) && (kHeld & KEY_SELECT) && (kHeld & KEY_L) && (kHeld & KEY_R) && !petSwitched) {
+            petSwitched = true;
+            ((PlatformCTR*)platform)->petMode = !((PlatformCTR*)platform)->petMode;
+            DISPLAY_INTRO_SCREEN();
+            DISPLAY_MAP_NAME();
+            CHANGE_DIFFICULTY_LEVEL();
+            REVERSE_MENU_OPTION(true);
+        }
+        else if((kUp & KEY_START) || (kUp & KEY_SELECT) || (kUp & KEY_L) || (kUp & KEY_R)) {
+            petSwitched = false;
+        }
         if (B != 0) {
             if ((B & Platform::JoystickDown)) { // CURSOR DOWN
                 if (MENUY != (PLATFORM_INTRO_OPTIONS - 1)) {
@@ -2853,13 +2867,17 @@ void CYCLE_MAP()
 void DISPLAY_MAP_NAME()
 {
     char* name = CALC_MAP_NAME();
-    for (int Y = 0; Y != 16; Y++) {
-#ifdef PLATFORM_IMAGE_SUPPORT
-        writeToScreenMemory(7 * SCREEN_WIDTH_IN_CHARACTERS + 1 + Y, name[Y], 15, 5);
-#else
-        writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS + 2 + Y, name[Y]);
-#endif
+    if(!((PlatformCTR*)platform)->petMode) {
+        for (int Y = 0; Y != 16; Y++) {
+            writeToScreenMemory(7 * SCREEN_WIDTH_IN_CHARACTERS + 1 + Y, name[Y], 15, 5);
+        }
     }
+    else {
+        for (int Y = 0; Y != 16; Y++) {
+            writeToScreenMemory(11 * SCREEN_WIDTH_IN_CHARACTERS + 7 + Y, name[Y], 15, 4);
+        }
+    }
+
     // now set the mapname for the filesystem load
 //    MAPNAME[6] = SELECTED_MAP + 65;
 }
@@ -2877,15 +2895,16 @@ void REVERSE_MENU_OPTION(bool reverse)
         platform->setHighlightedMenuRow(MENUY);
     }
 #else
-#ifdef PLATFORM_COLOR_SUPPORT
-    for (int Y = 0; Y != 10; Y++) {
-        writeToScreenMemory(MENU_CHART[MENUY] + Y, SCREEN_MEMORY[MENU_CHART[MENUY] + Y], reverse ? 14 : 15, 5);
+    if(!((PlatformCTR*)platform)->petMode) {
+        for (int Y = 0; Y != 10; Y++) {
+            writeToScreenMemory(MENU_CHART[MENUY] + Y, SCREEN_MEMORY[MENU_CHART[MENUY] + Y], reverse ? 14 : 15, 5);
+        }
     }
-#else
-    for (int Y = 0; Y != 10; Y++) {
-        writeToScreenMemory(MENU_CHART[MENUY] + Y, SCREEN_MEMORY[MENU_CHART[MENUY] + Y] ^ 0x80);
+    else {
+        for (int Y = 0; Y != 10; Y++) {
+            writeToScreenMemory(MENU_CHART[MENUY] + Y + SCREEN_WIDTH_IN_CHARACTERS * 3 + 5, SCREEN_MEMORY[MENU_CHART[MENUY] + Y+ SCREEN_WIDTH_IN_CHARACTERS * 3 + 5] ^ 0x80, 15, 4);
+        }
     }
-#endif
 #endif
 }
 
@@ -2902,20 +2921,15 @@ menu_chart_t MENU_CHART[] = { 2 * SCREEN_WIDTH_IN_CHARACTERS + 4, 3 * SCREEN_WID
 
 void CHANGE_DIFFICULTY_LEVEL()
 {
-#ifdef PLATFORM_IMAGE_SUPPORT
-    platform->renderFace(DIFF_LEVEL, 234, 75);
-#else
-    int Y = FACE_LEVEL[DIFF_LEVEL];
-    // DO CHARACTERS FIRST
-    writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS + 21, ROBOT_FACE[Y++]);
-    writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS + 22, ROBOT_FACE[Y++]);
-    writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS + 23, ROBOT_FACE[Y++]);
-    writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS + 25, ROBOT_FACE[Y++]);
-    writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS + 26, ROBOT_FACE[Y++]);
-    writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS + 27, ROBOT_FACE[Y++]);
-    writeToScreenMemory(6 * SCREEN_WIDTH_IN_CHARACTERS + 23, ROBOT_FACE[Y++]);
-    writeToScreenMemory(6 * SCREEN_WIDTH_IN_CHARACTERS + 25, ROBOT_FACE[Y]);
-#endif
+
+    PlatformCTR* platformCTR = (PlatformCTR*)platform;
+
+    if(!platformCTR->petMode)
+        platformCTR->renderFace(DIFF_LEVEL, 234, 75);
+    else {
+        platformCTR->renderFace(DIFF_LEVEL, 208, 60);
+    }
+
 }
 
 #ifdef INACTIVITY_TIMEOUT_GAME
@@ -3325,39 +3339,42 @@ void PET_BORDER_FLASH()
     if (BORDER != 0) {
         // border flash should be active
         if (FLASH_STATE != 1) { // Is it already flashing?
-#ifndef PLATFORM_IMAGE_SUPPORT
-            // copy flash message to screen
-            for (int X = 0; X != 6; X++) {
-                writeToScreenMemory(19 * SCREEN_WIDTH_IN_CHARACTERS - 6 + X, OUCH1[X]);
-                writeToScreenMemory(20 * SCREEN_WIDTH_IN_CHARACTERS - 6 + X, OUCH2[X]);
-                writeToScreenMemory(21 * SCREEN_WIDTH_IN_CHARACTERS - 6 + X, OUCH3[X]);
+            if(((PlatformCTR*)platform)->petMode) {
+                
+                // copy flash message to screen
+                for (int X = 0; X != 6; X++) {
+                    writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 5) + 31 + X, OUCH1[X], 10);
+                    writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 6) + 31 + X, OUCH2[X], 10);
+                    writeToScreenMemory(SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS + (50 * 7) + 31 + X, OUCH3[X], 10);
+                }
             }
-#endif
-            platform->startFadeScreen(BORDER_COLOR, 15 - BORDER);
+            else {
+                platform->startFadeScreen(BORDER_COLOR, 15 - BORDER);
+            }
             FLASH_STATE = 1;
         }
     } else {
         if (FLASH_STATE != 0) {
-#ifndef PLATFORM_IMAGE_SUPPORT
-            // Remove message from screen
-            for (int X = 0; X != 6; X++) {
-                writeToScreenMemory(19 * SCREEN_WIDTH_IN_CHARACTERS - 6 + X, 32);
-                writeToScreenMemory(20 * SCREEN_WIDTH_IN_CHARACTERS - 6 + X, 32);
-                writeToScreenMemory(21 * SCREEN_WIDTH_IN_CHARACTERS - 6 + X, 32);
+            if(((PlatformCTR*)platform)->petMode) {
+                // Remove message from screen
+                platform->clearRect(248, 280, 48, 24);
             }
-#endif
+            else {
+                platform->stopFadeScreen();
+            }
+
+
             FLASH_STATE = 0;
-            platform->stopFadeScreen();
         }
     }
 }
 
 uint8_t FLASH_STATE = 0;
-#ifndef PLATFORM_IMAGE_SUPPORT
+
 uint8_t OUCH1[] = { 0xCD, 0xA0, 0xA0, 0xA0, 0xA0, 0xCE };
 uint8_t OUCH2[] = { 0xA0, 0x8F, 0x95, 0x83, 0x88, 0xA0 };
 uint8_t OUCH3[] = { 0xCE, 0xA0, 0xA0, 0xA0, 0xA0, 0xCD };
-#endif
+
 
 // This is actually part of a background routine, but it has to be in the main
 // source because the screen effects used are unique on each system.
@@ -3399,17 +3416,19 @@ void DEMATERIALIZE()
 
 void ANIMATE_PLAYER()
 {
-#ifdef PLATFORM_SPRITE_SUPPORT
-    UNIT_TILE[0] = 96;
-    WALK_FRAME++;
-    WALK_FRAME &= 3;
-#else
-    if (UNIT_TILE[0] == 247) {
-        UNIT_TILE[0] = 243;
-    } else {
-        UNIT_TILE[0] = 247;
+    PlatformCTR* platformCTR = (PlatformCTR*)platform;
+    if(!platformCTR->petMode) {
+        UNIT_TILE[0] = 96;
+        WALK_FRAME++;
+        WALK_FRAME &= 3;
     }
-#endif
+    else {
+        if (UNIT_TILE[0] == 247) {
+            UNIT_TILE[0] = 243;
+        } else {
+            UNIT_TILE[0] = 247;
+        }
+    }
 }
 
 void PLAY_SOUND(int sound)
@@ -5423,7 +5442,6 @@ char CINEMA_MESSAGE[] =
     "rocky 5000, all my circuits the movie, "
     "conan the librarian, and more! comin";
 
-#ifndef PLATFORM_IMAGE_SUPPORT
 uint8_t WEAPON1A[] = {
     0x2c, 0x20, 0x20, 0x20, 0x20, 0x2c
 };
@@ -5519,7 +5537,6 @@ uint8_t MED1C[] = {
 uint8_t MED1D[] = {
     0x20, 0xE4, 0xE4, 0xE4, 0xE4, 0x20
 };
-#endif
 
 #ifndef PLATFORM_MODULE_BASED_AUDIO
 uint8_t NOTE_FREQ[] = {

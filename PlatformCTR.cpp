@@ -146,7 +146,8 @@ static uint32_t paletteGame[] = {
     0xff0077bb,
     0xff00ccff,
     0xff99aaee,
-    0xff0000ee
+    0xff0000ee,
+    0xff00c500
 };
 
 static uint8_t tileLiveMap[] = {
@@ -165,31 +166,69 @@ static uint8_t tileLiveMap[] = {
     1,  6,  6, 15, 14, 14,  4,  4, 14, 14, 14, 14,  2, 10, 10,  8,
     4,  4,  4,  5, 14, 14,  1,  5, 15, 15, 15,  5, 15, 15, 15,  5,
     15, 15, 15, 13,  4,  4, 13, 13,  4,  4, 13, 13,  1,  1,  0,  0,
-    0,  0, 14,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
+    0,  0, 14,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+
+    0,  0, 15, 15, 15, 15, 15, 15, 15,  0, 15, 15, 15, 15,  0, 15,
+    15, 15, 15, 15, 15, 15, 15, 14, 14, 15, 15, 15, 15, 14,  0,  0,
+    14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
+    15, 15, 15, 14, 15, 14, 14, 14, 15, 14, 14, 14, 14, 14, 14, 15,
+     0,  0,  0, 15, 15,  0,  0, 15, 14,  0,  0, 15, 15,  0,  0, 15,
+    15, 14, 15, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 14,
+    14, 14,  0,  0,  0,  0,  0,  0, 15, 15, 15, 14, 14, 14, 14,  0,
+    15, 15, 15, 14,  0,  0, 15, 15, 15, 15,  0,  0,  0,  0,  0,  0,
+    15, 15, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
+    15, 15, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,  0,
+    14, 14, 14,  0, 14, 14, 15, 14,  0, 14, 15, 14, 14, 14, 15, 14,
+    15, 15, 15, 15, 15, 14, 14, 14, 15, 15, 15, 15, 15,  0, 15, 15,
+    15, 15, 15, 15, 14, 14, 14, 14, 14, 14, 14, 14, 14,  0, 14, 14,
+     0,  0,  0, 15, 15, 15, 14, 14, 15, 15, 15, 14, 15, 15, 15, 15,
+    15, 15, 15, 14,  0,  0, 14, 14,  0,  0, 14, 14, 14, 14,  0,  0,
+     0,  0, 15,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
 };
 
-uint32_t mapPalette[] = {
-    0xff000000,
-    0xff555555,
-    0xffaa0000,
-    0xffff5555,
-    0xff00aa00,
-    0xff55ff55,
-    0xffaaaa00,
-    0xffffff55,
-    0xff0000aa,
-    0xff0055ff,
-    0xffaa00aa,
-    0xffff55ff,
-    0xff0055aa,
+
+// uint32_t mapPalette[] = {
+//     0xff000000,
+//     0xff555555,
+//     0xffaa0000,
+//     0xffff5555,
+//     0xff00aa00,
+//     0xff55ff55,
+//     0xffaaaa00,
+//     0xffffff55,
+//     0xff0000aa,
+//     0xff0055ff,
+//     0xffaa00aa,
+//     0xffff55ff,
+//     0xff0055aa,
+//     0xff55ffff,
+//     0xffaaaaaa,
+//     0xffffffff
+// };
+// second half is pet colours
+static uint32_t mapPalette[] = {
+    0x000000ff,
+    0x555555ff,
+    0x0000aaff,
+    0x5555ffff,
+    0x00aa00ff,
+    0x55ff55ff,
+    0x00aaaaff,
+    0x55ffffff,
+    0xaa0000ff,
+    0xff5500ff,
+    0xaa00aaff,
     0xff55ffff,
-    0xffaaaaaa,
+    0xaa5500ff,
+    0xffff55ff,
+    0xaaaaaaff,
     0xffffffff
 };
 
 std::list<Sprite> renderQueueTop;
 std::list<Sprite> renderQueueBot;
 C2D_Sprite gameOverlay;
+
 
 static bool shake = false;
 static int shakeTimer = 0;
@@ -199,34 +238,50 @@ static u32 tileMap[PLATFORM_MAP_WINDOW_TILES_HEIGHT * PLATFORM_MAP_WINDOW_TILES_
 #define draw(s) if(queue) renderQueueTop.emplace_back(s); else C2D_DrawSpriteTinted(&s.sprite, &s.tint)
 #define shake(s, timer) s.sprite.params.pos.x = (timer % 6) ? s.sprite.params.pos.x - 8 : s.sprite.params.pos.x; 
 
+static inline size_t posToTex(unsigned int x, unsigned int y) 
+{
+    constexpr int width = 128;
+    constexpr int height = 64;
+
+    return ((((y >> 3) * (width >> 3) + (x >> 3)) << 6) + ((x & 1) | ((y & 1) << 1) | ((x & 2) << 1) | ((y & 2) << 2) | ((x & 4) << 2) | ((y & 4) << 3)));
+}
+
 void PlatformCTR::decodeTiles(u32* tileMap, int x, int y, bool queue)
 {
-    if(tileMap[(y) * PLATFORM_MAP_WINDOW_TILES_WIDTH + x] >= (1 << 18 ) && !(tileMap[(y) * PLATFORM_MAP_WINDOW_TILES_WIDTH + x] & 0x3FFFF) ) {
+    const u32 index = (y) * PLATFORM_MAP_WINDOW_TILES_WIDTH + x;
+
+    if(tileMap[index] >= (1 << 18 ) && !(tileMap[index] & 0x3FFFF) ) {
         Sprite sprite;
-        C2D_SpriteFromSheet(&sprite.sprite, animTilesSpritesheet, tileMap[(y) * PLATFORM_MAP_WINDOW_TILES_WIDTH + x] >> 18);
+        C2D_SpriteFromSheet(&sprite.sprite, animTilesSpritesheet, ((tileMap[index] >> 18) & 0b11111111) + petMode * 24);
         C2D_SpriteSetPos(&sprite.sprite, (x) *24, (y) *24);
         shake(sprite, shakeTimer);
         draw(sprite);
         return;
     }
 
-    if(tileMap[(y) * PLATFORM_MAP_WINDOW_TILES_WIDTH + x] > 255 ) {
-        const u32 tile = tileMap[(y) * PLATFORM_MAP_WINDOW_TILES_WIDTH + x];
+    if(tileMap[index] > 255 ) {
+        const u32 tile = tileMap[index];
+        const bool animAttrib = tile & 0x1;
+        const bool spriteAttrib = tile & 0x2;
         Sprite background;
-        C2D_SpriteFromSheet(&background.sprite, tile & 0x1 ? animTilesSpritesheet : tileSpritesheet, tile >> 2 & 0b11111111);
+        if(petMode) {
+            C2D_SpriteFromSheet(&background.sprite, animAttrib ? animTilesSpritesheet : petTilesSpritesheet, 
+                (tile >> 2 & 0b11111111) + (animAttrib ? 24 : 0));
+        } else {
+            C2D_SpriteFromSheet(&background.sprite, animAttrib ? animTilesSpritesheet : tileSpritesheet, tile >> 2 & 0b11111111);
+        }
         C2D_SpriteSetPos(&background.sprite, (x) *24, (y) *24);
         shake(background, shakeTimer);
         draw(background);
         Sprite foreground;
-        C2D_SpriteFromSheet(&foreground.sprite, tile & 0x2 ? spritesSpritesheet : tileSpritesheet, tile >> 10 & 0b11111111);
+        C2D_SpriteFromSheet(&foreground.sprite, spriteAttrib ? spritesSpritesheet : petMode ? petTilesSpritesheet : tileSpritesheet, tile >> 10 & 0b11111111);
         C2D_SpriteSetPos(&foreground.sprite, (x) *24, (y) *24);
         shake(foreground, shakeTimer);
         draw(foreground);
         return;
     }
-        
     Sprite sprite;
-    C2D_SpriteFromSheet(&sprite.sprite, tileSpritesheet, tileMap[(y) * PLATFORM_MAP_WINDOW_TILES_WIDTH + x]);
+    C2D_SpriteFromSheet(&sprite.sprite, petMode ? petTilesSpritesheet : tileSpritesheet, tileMap[(y) * PLATFORM_MAP_WINDOW_TILES_WIDTH + x]);
     C2D_SpriteSetPos(&sprite.sprite, (x) *24, (y) *24);
     shake(sprite, shakeTimer);
     draw(sprite);
@@ -282,12 +337,14 @@ PlatformCTR::PlatformCTR() :
     romfsInit();
     gfxInitDefault();
     C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
-    C2D_Init(C2D_DEFAULT_MAX_OBJECTS * 3);
+    C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
+    C2D_Prepare();
     C2D_SetTintMode(C2D_TintMult);
     osSetSpeedupEnable(true);
     if (SDL_Init(SDL_INIT_AUDIO) != 0) {
         fprintf(stderr, "Error initializing SDL: %s\n", SDL_GetError());
     }
+
 
     topScreen = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
@@ -318,6 +375,7 @@ PlatformCTR::PlatformCTR() :
     
     fontSpritesheet = C2D_SpriteSheetLoad("romfs:/c64font.t3x");
     tileSpritesheet = C2D_SpriteSheetLoad("romfs:/tiles.t3x");
+    petTilesSpritesheet = C2D_SpriteSheetLoad("romfs:/pettiles.t3x");
     imageSpritesheet = C2D_SpriteSheetLoad("romfs:/images.t3x");
     itemsSpritesheet = C2D_SpriteSheetLoad("romfs:/items.t3x");
     keysSpritesheet = C2D_SpriteSheetLoad("romfs:/keys.t3x");
@@ -327,6 +385,25 @@ PlatformCTR::PlatformCTR() :
     spritesSpritesheet = C2D_SpriteSheetLoad("romfs:/sprites.t3x");
     textSpritesheet = C2D_SpriteSheetLoad("romfs:/text.t3x");
     C2D_SpriteFromSheet(&gameOverlay, imageSpritesheet, 1);
+
+    //setup map texture
+    for(int i = 0; i < 4; i++) {
+        imageTint.corners[i].blend = 1.f;
+        imageTint.corners[i].color = 0xff00c500;
+    }
+    C3D_Tex* tex = new C3D_Tex;
+    C3D_TexInit(tex, 128, 64, GPU_RGBA8);
+    C3D_TexSetFilter(tex, GPU_NEAREST, GPU_NEAREST);
+    Tex3DS_SubTexture* subtex = new Tex3DS_SubTexture;
+	subtex->width = 128;
+	subtex->height = 64;
+	subtex->left = 0;
+	subtex->top = 1;	
+	subtex->right = 1;
+	subtex->bottom = 0;
+    mapImage.tex = tex;
+    mapImage.subtex = subtex;
+    memset(mapImage.tex->data, 0, mapImage.tex->size);
 
 #ifdef PLATFORM_MODULE_BASED_AUDIO
     int sample = 0;
@@ -389,6 +466,7 @@ PlatformCTR::~PlatformCTR()
 {
     C2D_SpriteSheetFree(fontSpritesheet);
     C2D_SpriteSheetFree(tileSpritesheet);
+    C2D_SpriteSheetFree(petTilesSpritesheet);
     C2D_SpriteSheetFree(imageSpritesheet);
     C2D_SpriteSheetFree(itemsSpritesheet);
     C2D_SpriteSheetFree(keysSpritesheet);
@@ -406,6 +484,8 @@ PlatformCTR::~PlatformCTR()
     gfxExit();
     romfsExit();
 #ifdef PLATFORM_MODULE_BASED_AUDIO
+    delete mapImage.subtex;
+    delete mapImage.tex;
     delete[] sampleData;
     delete[] moduleData;
 #endif
@@ -639,15 +719,15 @@ uint8_t* PlatformCTR::loadTileset()
 #ifdef PLATFORM_IMAGE_SUPPORT
 void PlatformCTR::displayImage(Image image)
 {
-
     if (image == ImageGame) {
         palette = paletteGame;
         Sprite sprite;
-        C2D_SpriteFromSheet(&sprite.sprite, imageSpritesheet, image);
+        C2D_SpriteFromSheet(&sprite.sprite, imageSpritesheet, image + 3 *petMode);
         C2D_SpriteScale(&sprite.sprite, 1.f, 1.f);
+        gameOverlay = sprite.sprite;
         renderQueueTop.emplace_back(sprite);
         for(int i = 0; i < 4; i++) {
-            C2D_SpriteFromSheet(&sprite.sprite, textSpritesheet, i);
+            C2D_SpriteFromSheet(&sprite.sprite, textSpritesheet, i + 4 * petMode);
             C2D_SpriteSetPos(&sprite.sprite, 28 + 72 * i, 14);
             renderQueueBot.emplace_back(sprite);
         }
@@ -655,13 +735,14 @@ void PlatformCTR::displayImage(Image image)
     } else {
         palette = paletteIntro;
         Sprite sprite;
-        C2D_SpriteFromSheet(&sprite.sprite, imageSpritesheet, image);
+        C2D_SpriteFromSheet(&sprite.sprite, imageSpritesheet, image + 3 * petMode);
         if(image == ImageGameOver) {
             C2D_SpriteScale(&sprite.sprite, 1.f, 1.f);
             memset(tileMap, 0, PLATFORM_MAP_WINDOW_TILES_HEIGHT * PLATFORM_MAP_WINDOW_TILES_WIDTH * sizeof(tileMap[0]));
+            memset(mapImage.tex->data, 0, mapImage.tex->size);
         }
         else {
-            C2D_SpriteScale(&sprite.sprite, 1.25f, 1.25f);
+            C2D_SpriteScale(&sprite.sprite, petMode ? 1.f : 1.25f, petMode ? 1.f : 1.25f);
         }
         renderQueueTop.emplace_back(sprite);
 
@@ -687,6 +768,40 @@ SDL_Rect clipRect = { 0, 0, PLATFORM_SCREEN_WIDTH - 56, PLATFORM_SCREEN_HEIGHT -
 
 void PlatformCTR::renderTile(uint8_t tile, uint16_t x, uint16_t y, uint8_t variant, bool transparent)
 {
+    if(petMode) {
+        // switch(tile) {
+        //     // case 204: // water
+        //     //     variant = variant > 2 ? 1 : variant;
+        //     //     break;
+        //     // case 221: // water handrail
+        //     //     variant = variant > 2 ? 1 : variant;
+        //     //     break;
+        //     // case 148: // trash compactor
+        //     //     variant = variant > 2 ? 0 : variant;
+        //     //     break;
+        //     case 143: // server light
+        //         variant = variant > 1 ? variant-2 : variant;
+        //         break;
+        //     default:
+        //         break;
+        // }
+        if (animTileMap[tile] > 0 && !transparent) {
+            renderAnimTile(animTileMap[tile] + variant, x, y);
+            return;
+        } else if (tile == 221) {
+            renderAnimTile(variant, x, y);
+            return;
+        }
+
+        Sprite sprite;
+        C2D_SpriteFromSheet(&sprite.sprite, petTilesSpritesheet, tile);
+        C2D_SpriteSetPos(&sprite.sprite, x, y);
+        renderQueueTop.emplace_back(sprite);
+        tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] = tile;
+        return;
+        
+    }
+
     if (transparent) {
         if (tileSpriteMap[tile] >= 0) {
             renderSprite(tileSpriteMap[tile] + variant, x, y);
@@ -700,7 +815,7 @@ void PlatformCTR::renderTile(uint8_t tile, uint16_t x, uint16_t y, uint8_t varia
     }
 
     Sprite sprite;
-    C2D_SpriteFromSheet(&sprite.sprite, tileSpritesheet, tile);
+    C2D_SpriteFromSheet(&sprite.sprite, petMode ? petTilesSpritesheet : tileSpritesheet, tile);
     C2D_SpriteSetPos(&sprite.sprite, x, y);
     renderQueueTop.emplace_back(sprite);
     tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] = tile;
@@ -709,6 +824,37 @@ void PlatformCTR::renderTile(uint8_t tile, uint16_t x, uint16_t y, uint8_t varia
 void PlatformCTR::renderTiles(uint8_t backgroundTile, uint8_t foregroundTile, uint16_t x, uint16_t y, uint8_t backgroundVariant, uint8_t foregroundVariant)
 {
     tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] = 0;
+    if(petMode) {
+        Sprite sprite;
+
+        if (animTileMap[backgroundTile] > 0) {
+            backgroundTile = animTileMap[backgroundTile] + backgroundVariant;
+            C2D_SpriteFromSheet(&sprite.sprite, animTilesSpritesheet, backgroundTile + 24);
+            C2D_SpriteSetPos(&sprite.sprite, x, y);
+            renderQueueTop.emplace_back(sprite);
+            tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] |= 0x1;
+            tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] |= (backgroundTile << 2);
+        } else if (backgroundTile == 221) {
+            C2D_SpriteFromSheet(&sprite.sprite, animTilesSpritesheet, backgroundVariant + 24);
+            C2D_SpriteSetPos(&sprite.sprite, x, y);
+            renderQueueTop.emplace_back(sprite);
+            tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] |= 0x1;
+            tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] |= (backgroundVariant << 2);
+        } else {
+            tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] |= (backgroundTile << 2);
+            C2D_SpriteFromSheet(&sprite.sprite, petTilesSpritesheet, backgroundTile);
+            C2D_SpriteSetPos(&sprite.sprite, x, y);
+            renderQueueTop.emplace_back(sprite);
+        }
+
+        C2D_SpriteFromSheet(&sprite.sprite, petTilesSpritesheet, foregroundTile);
+        C2D_SpriteSetPos(&sprite.sprite, x, y);
+        renderQueueTop.emplace_back(sprite);
+        tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] |= foregroundTile << 10;
+        if(foregroundTile == 0) 
+            tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] |= 1 << 18;
+        return;
+    }
     if (animTileMap[backgroundTile] >= 0) {
         backgroundTile = animTileMap[backgroundTile] + backgroundVariant;
         Sprite sprite;
@@ -720,7 +866,7 @@ void PlatformCTR::renderTiles(uint8_t backgroundTile, uint8_t foregroundTile, ui
 
     } else {
         Sprite sprite;
-        C2D_SpriteFromSheet(&sprite.sprite, tileSpritesheet, backgroundTile);
+        C2D_SpriteFromSheet(&sprite.sprite, petMode ? petTilesSpritesheet : tileSpritesheet, backgroundTile);
         C2D_SpriteSetPos(&sprite.sprite, x, y);
         renderQueueTop.emplace_back(sprite);
         tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] |= (backgroundTile << 2);
@@ -738,7 +884,7 @@ void PlatformCTR::renderTiles(uint8_t backgroundTile, uint8_t foregroundTile, ui
             tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] |= 1 << 18;
     } else {
         Sprite Ssprite;
-        C2D_SpriteFromSheet(&Ssprite.sprite, tileSpritesheet, foregroundTile);
+        C2D_SpriteFromSheet(&Ssprite.sprite, petMode ? petTilesSpritesheet : tileSpritesheet, foregroundTile);
         C2D_SpriteSetPos(&Ssprite.sprite, x, y);
         renderQueueTop.emplace_back(Ssprite);
         tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] |= foregroundTile << 10;
@@ -761,10 +907,12 @@ void PlatformCTR::renderSprite(uint8_t sprite, uint16_t x, uint16_t y)
 void PlatformCTR::renderAnimTile(uint8_t animTile, uint16_t x, uint16_t y)
 {
     Sprite sprite;
-    C2D_SpriteFromSheet(&sprite.sprite, animTilesSpritesheet, animTile);
+    C2D_SpriteFromSheet(&sprite.sprite, animTilesSpritesheet, animTile + petMode * 24);
     C2D_SpriteSetPos(&sprite.sprite, x, y);
     renderQueueTop.emplace_back(sprite);
     tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] = animTile << 18;
+    if(animTile == 0)
+        tileMap[PLATFORM_MAP_WINDOW_TILES_WIDTH * (y/24) + (x/24)] = 1 << 26;
 }
 #endif
 
@@ -772,7 +920,7 @@ void PlatformCTR::renderAnimTile(uint8_t animTile, uint16_t x, uint16_t y)
 void PlatformCTR::renderItem(uint8_t item, uint16_t x, uint16_t y)
 {
     Sprite sprite;
-    C2D_SpriteFromSheet(&sprite.sprite, itemsSpritesheet, item);
+    C2D_SpriteFromSheet(&sprite.sprite, itemsSpritesheet, item + petMode * 6);
     C2D_SpriteSetPos(&sprite.sprite, x, y);
     renderQueueBot.emplace_back(sprite);
 }
@@ -796,9 +944,14 @@ void PlatformCTR::renderHealth(uint8_t health, uint16_t x, uint16_t y)
 void PlatformCTR::renderFace(uint8_t face, uint16_t x, uint16_t y)
 {
     Sprite sprite;
-    C2D_SpriteFromSheet(&sprite.sprite, facesSpritesheet, face);
-    C2D_SpriteScale(&sprite.sprite, 1.25, 1.25);
-    C2D_SpriteSetPos(&sprite.sprite, x * 1.25, y * 1.25);
+    C2D_SpriteFromSheet(&sprite.sprite, facesSpritesheet, face + petMode * 3);
+    if(!petMode) {
+        C2D_SpriteScale(&sprite.sprite, 1.25, 1.25);
+        C2D_SpriteSetPos(&sprite.sprite, x * 1.25, y * 1.25);
+    } else {
+        C2D_SpriteSetPos(&sprite.sprite, x, y);
+    }
+
     renderQueueTop.emplace_back(sprite);
 }
 #endif
@@ -808,16 +961,12 @@ void PlatformCTR::renderLiveMap(uint8_t* map)
 {
     for (int mapY = 0; mapY < 64; mapY++) {
         for (int mapX = 0; mapX < 128; mapX++) {
-            Sprite sprite;
-            sprite.flags = DRAWRECT;
-            sprite.colour = mapPalette[tileLiveMap[*map++]];
-            sprite.rect = { LIVE_MAP_ORIGIN_X + mapX * 2, LIVE_MAP_ORIGIN_Y + mapY * 2, 2, 2 };
-            // C2D_SpriteFromSheet(&sprite.sprite, tileSpritesheet, *map++);
-            // C2D_SpriteSetPos(&sprite.sprite, LIVE_MAP_ORIGIN_X + mapX * 2, LIVE_MAP_ORIGIN_Y + (mapY * 2));
-            // sprite.sprite.params.pos.w = 2;
-            // sprite.sprite.params.pos.h = 2;
-            // *map++;
-            renderQueueBot.emplace_back(sprite);
+            // Sprite sprite;
+            // sprite.flags = DRAWRECT;
+            // sprite.colour = mapPalette[tileLiveMap[*map++]];
+            // sprite.rect = { LIVE_MAP_ORIGIN_X + mapX * 2, LIVE_MAP_ORIGIN_Y + mapY * 2, 2, 2 };
+            // renderQueueBot.emplace_back(sprite);
+            ((u32*)mapImage.tex->data)[posToTex(mapX, mapY)] = mapPalette[tileLiveMap[*map++ + 256 * petMode]];
         }
     }
 
@@ -828,16 +977,17 @@ void PlatformCTR::renderLiveMap(uint8_t* map)
 
 void PlatformCTR::renderLiveMapTile(uint8_t* map, uint8_t mapX, uint8_t mapY)
 {
-    Sprite sprite;
-    sprite.flags = DRAWRECT;
-    sprite.colour = mapPalette[tileLiveMap[map[(mapY << 7) + mapX]]];
-    sprite.rect = { LIVE_MAP_ORIGIN_X + mapX * 2, LIVE_MAP_ORIGIN_Y + mapY * 2, 2, 2 };
-    // C2D_SpriteFromSheet(&sprite.sprite, tileSpritesheet, map[(mapY << 7) + mapX]);
-    // C2D_SpriteSetPos(&sprite.sprite, LIVE_MAP_ORIGIN_X + mapX * 2, LIVE_MAP_ORIGIN_Y + mapY * 2);
-    // sprite.sprite.params.pos.w = 2;
-    // sprite.sprite.params.pos.h = 2;
-    renderQueueBot.emplace_back(sprite);
+    // Sprite sprite;
+    // sprite.flags = DRAWRECT;
+    // sprite.colour = mapPalette[tileLiveMap[map[(mapY << 7) + mapX]]];
+    // sprite.rect = { LIVE_MAP_ORIGIN_X + mapX * 2, LIVE_MAP_ORIGIN_Y + mapY * 2, 2, 2 };
+    // renderQueueBot.emplace_back(sprite);
+    ((u32*)mapImage.tex->data)[posToTex(mapX, mapY)] = mapPalette[tileLiveMap[map[(mapY << 7) + mapX] + 256 * petMode]];
+
 }
+
+#define ABGR_TO_RGBA(abgr) (((abgr & 0x000000FF) << 24) | ((abgr & 0x0000FF00) << 8) | ((abgr & 0x00FF0000) >> 8) | ((abgr & 0xFF000000) >> 24))
+
 
 void PlatformCTR::renderLiveMapUnits(uint8_t* map, uint8_t* unitTypes, uint8_t* unitX, uint8_t* unitY, uint8_t playerColor, bool showRobots)
 {
@@ -862,12 +1012,14 @@ void PlatformCTR::renderLiveMapUnits(uint8_t* map, uint8_t* unitTypes, uint8_t* 
                 // Render new dot
                 int x = unitX[i];
                 int y = unitY[i];
-                Sprite sprite;
-                sprite.flags = DRAWRECT;
-                sprite.rect = { LIVE_MAP_ORIGIN_X + x * 2, LIVE_MAP_ORIGIN_Y + y * 2, 2, 2 };
-                sprite.colour = palette[(i > 0 || playerColor == 1) ? 1 : 0];
-                renderQueueBot.emplace_back(sprite);
-                // SDL_FillRect(bufferSurface, &clearRect, SDL_MapRGB(bufferSurface->format, color & 0xff, (color >> 8) & 0xff, (color >> 16)  & 0xff));
+                
+                // Sprite sprite;
+                // sprite.flags = DRAWRECT;
+                // sprite.rect = { LIVE_MAP_ORIGIN_X + x * 2, LIVE_MAP_ORIGIN_Y + y * 2, 2, 2 };
+                // sprite.colour = palette[(i > 0 || playerColor == 1) ? 1 : 0];
+                // renderQueueBot.emplace_back(sprite);
+                u32 chosenPalette = palette[(i > 0 || playerColor == 1) ? 1 : 0];
+                ((u32*)mapImage.tex->data)[posToTex(x, y)] = ABGR_TO_RGBA(chosenPalette);
 
                 ::unitTypes[i] = i == 0 ? playerColor : unitTypes[i];
                 ::unitX[i] = unitX[i];
@@ -1044,7 +1196,7 @@ void PlatformCTR::writeToScreenMemory(address_t address, uint8_t value, uint8_t 
     const int y = ((address / SCREEN_WIDTH_IN_CHARACTERS) << 3) + yOffset;
     C2D_SpriteFromSheet(&sprite.sprite, fontSpritesheet, value);
     C2D_SpriteSetPos(&sprite.sprite, x, y);
-    if(palette == paletteIntro)
+    if(palette == paletteIntro && !petMode)
     {
         C2D_SpriteScale(&sprite.sprite, 1.25, 1.25);
         C2D_SpriteSetPos(&sprite.sprite, x * 1.25, loadedImage == ImageGameOver ? y * 1.25 - 10 : y * 1.25);
@@ -1190,11 +1342,13 @@ void PlatformCTR::renderFrame(bool)
         this->quit = false;
         return;
     }
-    C2D_Prepare();
+    
+    // C2D_Prepare();
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     if(shake)
         C2D_TargetClear(topScreen, 0);
     C2D_SceneBegin(topScreen);
+
 
     if(cursorCover)
     {
@@ -1213,10 +1367,6 @@ void PlatformCTR::renderFrame(bool)
     }
 
     if(shake) {
-        // Sprite gameOverlay;
-        // C2D_SpriteSetPos(&gameOverlay.sprite, (shakeTimer % 6) ? -8 : 0, 0);
-        // C2D_SpriteFromSheet(&gameOverlay.sprite, imageSpritesheet, 1);
-        // renderQueueTop.emplace_back(gameOverlay);
         renderQueueTop.clear();
         for (int X = 0; X != 33; X++) {
             writeToScreenMemory((SCREEN_HEIGHT_IN_CHARACTERS - 3) * SCREEN_WIDTH_IN_CHARACTERS + X - (shakeTimer % 6 && X != 0), SCREEN_MEMORY[0x546 + X], 10, 0);
@@ -1252,17 +1402,20 @@ void PlatformCTR::renderFrame(bool)
 
 
     if(cursorX != -1) {
-        C2D_DrawLine(cursorX, cursorY, C2D_Color32(255,255,255,255), cursorX + 28, cursorY, C2D_Color32(255,255,255,255), 2, 0);
-        C2D_DrawLine(cursorX, cursorY + 26, C2D_Color32(255,255,255,255), cursorX + 26, cursorY + 26, C2D_Color32(255,255,255,255), 2, 0);
-        C2D_DrawLine(cursorX + 27, cursorY, C2D_Color32(255,255,255,255), cursorX + 27, cursorY + 27, C2D_Color32(255,255,255,255), 2, 0);
-        C2D_DrawLine(cursorX+1, cursorY, C2D_Color32(255,255,255,255), cursorX+1, cursorY + 27, C2D_Color32(255,255,255,255), 2, 0);
-        if (cursorShape != ShapeUse) {
+        const u32 colour = petMode ? C2D_Color32(0,191,0,255) : C2D_Color32(255,255,255,255);
+        C2D_DrawLine(cursorX, cursorY, colour, cursorX + 28, cursorY, colour, 2, 0);
+        C2D_DrawLine(cursorX, cursorY + 26, colour, cursorX + 26, cursorY + 26, colour, 2, 0);
+        C2D_DrawLine(cursorX + 27, cursorY, colour, cursorX + 27, cursorY + 27, colour, 2, 0);
+        C2D_DrawLine(cursorX+1, cursorY, colour, cursorX+1, cursorY + 27, colour, 2, 0);
+        if (cursorShape != ShapeUse && !petMode) {
             C2D_Sprite sprite;
             C2D_SpriteFromSheet(&sprite, spritesSpritesheet, cursorShape == ShapeSearch ? 83 : 85);
             C2D_SpriteSetPos(&sprite, cursorX + 2, cursorY + 1);
             C2D_DrawSprite(&sprite);
             if(cursorShape == ShapeSearch)
                 cursorCover = true;
+        } else if (petMode) {
+            cursorCover = true;
         }
     }
 
@@ -1317,6 +1470,8 @@ void PlatformCTR::renderFrame(bool)
         }
         renderQueueBot.clear();
     }
+
+    C2D_DrawImageAt(mapImage, LIVE_MAP_ORIGIN_X, LIVE_MAP_ORIGIN_Y, 0, petMode ? &imageTint : nullptr, 2.f, 2.f);
 
     C3D_FrameEnd(0);
     if(fadeIntensity != 15)

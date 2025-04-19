@@ -1,4 +1,7 @@
---atlas -f rgba8888 -z auto
+--atlas -f rgb -z auto
 faces/0.png
 faces/1.png
 faces/2.png
+pet/faces/0.png
+pet/faces/1.png
+pet/faces/2.png

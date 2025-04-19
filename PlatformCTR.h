@@ -102,6 +102,7 @@ public:
     virtual void renderFrame(bool waitForNextFrame);
 
     uint8_t SCREEN_MEMORY[SCREEN_WIDTH_IN_CHARACTERS * SCREEN_HEIGHT_IN_CHARACTERS];
+    bool petMode = false;
 private:
     uint32_t load(const char* filename, uint8_t* destination, uint32_t size);
     void decodeTiles(u32* tileMap, int x, int y, bool queue);
@@ -123,6 +124,7 @@ private:
     C3D_RenderTarget* bottomScreen;
     C2D_SpriteSheet fontSpritesheet;
     C2D_SpriteSheet tileSpritesheet;
+    C2D_SpriteSheet petTilesSpritesheet;
     C2D_SpriteSheet imageSpritesheet;
     C2D_SpriteSheet itemsSpritesheet;
     C2D_SpriteSheet keysSpritesheet;
@@ -133,6 +135,9 @@ private:
     uint32_t* palette;
 
     C2D_SpriteSheet spritesSpritesheet;
+
+    C2D_Image mapImage;
+    C2D_ImageTint imageTint;
 
     SDL_Rect cursorRect;
     CursorShape cursorShape;
