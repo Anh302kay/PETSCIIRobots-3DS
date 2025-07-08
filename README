@@ -44,3 +44,4 @@ TOUCH toggle live map robots
 SELECT / TOUCH +A pause
 SELECT / TOUCH +B toggle music
 Holding Touch Screen also makes it act as the select button
+SELECT + START + L + R swaps between PET mode and Hi-res mode
